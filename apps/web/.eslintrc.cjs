@@ -2,4 +2,7 @@
 module.exports = {
   root: true,
   extends: ["@chunkmydocs/eslint-config/index.js"],
+  parserOptions: {
+    project: "./tsconfig.json",
+  },
 };
