@@ -6,7 +6,10 @@ module.exports = {
   extends: [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-requiring-type-checking",
+    "plugin:@typescript-eslint/strict",
     "prettier",
+    "plugin:prettier/recommended",
   ],
   plugins: ["@typescript-eslint"],
   parserOptions: {
@@ -15,5 +18,33 @@ module.exports = {
   },
   rules: {
     "@typescript-eslint/no-non-null-assertion": "off",
+    "prettier/prettier": [
+      "error",
+      {
+        endOfLine: "auto",
+      },
+    ],
+    "@typescript-eslint/ban-ts-comment": "warn",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        args: "all",
+        argsIgnorePattern: "^_",
+        caughtErrors: "all",
+        caughtErrorsIgnorePattern: "^_",
+        destructuredArrayIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        ignoreRestSiblings: true,
+      },
+    ],
   },
+  overrides: [],
+  ignorePatterns: [
+    "node_modules",
+    "dist",
+    "tailwind.config.cjs",
+    "prettier.config.cjs",
+    "vite.config.ts",
+    "postcss.config.cjs",
+  ],
 };
