@@ -12,6 +12,7 @@ use actix_web::HttpRequest;
 use actix_web::{web, App, HttpServer};
 use env_logger::Env;
 use middleware::api_key::ApiKeyMiddlewareFactory;
+use routes::auth::create_api_key;
 use routes::extract::extract_files;
 use routes::health::health_check;
 use routes::task::get_task_status;
@@ -58,6 +59,7 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("/api")
                     .wrap(ApiKeyMiddlewareFactory)
+                    .route("/create_api_key", web::post().to(create_api_key))
                     .route("/extract", web::post().to(extract_files))
                     .route("/task/{task_id}", web::get().to(get_task_status)),
             )
