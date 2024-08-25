@@ -16,7 +16,7 @@ pub async fn get_task(
     let storage_url = env::var("STORAGE__URL").expect("STORAGE__URL must be set");
     let client: Client = pool.get().await?;
     let http_client = HttpClient::new();
-
+    println!("Getting");
     let task_and_files = client.query(
         "SELECT t.status AS task_status, t.expiration_time, t.created_at, t.finished_at, t.url AS task_url, t.model, t.message,
                 f.file_id, f.status AS file_status, f.input_location, f.output_location
@@ -29,7 +29,7 @@ pub async fn get_task(
     if task_and_files.is_empty() {
         return Err("Task not found".into());
     }
-
+    println!("Task found");
     let first_row = &task_and_files[0];
     let task_status: Status = first_row
         .get::<_, Option<String>>("task_status")
