@@ -52,14 +52,7 @@ pub async fn create_task(
 ) -> Result<TaskResponse, Box<dyn Error>> {
     dotenv().ok();
     let mut client: Client = pool.get().await?;
-<<<<<<< HEAD
-    let expiration = env::var("INGEST_SERVER__EXPIRATION")
-        .ok()
-        .map(|val| val)
-        .or(None);
-=======
     let expiration = env::var("INGEST_SERVER__EXPIRATION").ok().or(None);
->>>>>>> origin/main
     let created_at: DateTime<Utc> = Utc::now();
     let expiration_time: Option<DateTime<Utc>> = expiration.clone().map(|exp| {
         let std_duration: Duration = humantime::parse_duration(&exp).unwrap();
