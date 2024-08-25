@@ -1,3 +1,12 @@
+import BetterButton from "../components/BetterButton";
+import { Text } from "@radix-ui/themes";
+
 export const Viewer = () => {
-  return (<div>Hello Viewer</div>)
+  return (
+    <BetterButton>
+      <Text size="9" weight="medium">
+        Hello Viewer
+      </Text>
+    </BetterButton>
+  );
 };
