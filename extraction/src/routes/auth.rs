@@ -1,21 +1,17 @@
-use crate::models::api::api_key::{
-    AccessLevel, ApiKey, ApiKeyLimit, ApiKeyUsage, ApiRequest, UsageType,
-};
+use crate::models::api::api_key::{ApiKey, ApiKeyLimit, ApiKeyUsage, ApiRequest};
 use crate::utils::db::deadpool_postgres::{Client, Pool};
-use actix_web::{web, Error, HttpMessage, HttpRequest, HttpResponse};
+use actix_web::{web, Error, HttpResponse};
 use prefixed_api_key::PrefixedApiKeyController;
 use sha2::Sha256;
-use uuid::Uuid;
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use rand::rngs::OsRng;
 
 pub async fn put_api_key(
-    req: HttpRequest,
     request_payload: web::Json<ApiRequest>,
+    pool: web::Data<Pool>,
 ) -> Result<HttpResponse, Error> {
     let request = request_payload.into_inner();
-    let pool = req.app_data::<web::Data<Pool>>().unwrap();
     let new_key = create_api_key(request, &pool).await?;
     Ok(HttpResponse::Ok().json(new_key))
 }
@@ -28,7 +24,6 @@ pub async fn create_api_key(
 
     let controller: PrefixedApiKeyController<OsRng, Sha256> = PrefixedApiKeyController::configure()
         .prefix("lu".to_owned())
-        .seam_defaults()
         .finalize()?;
 
     let (pak, _hash) = controller.try_generate_key_and_hash()?;

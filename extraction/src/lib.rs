@@ -13,6 +13,7 @@ pub mod routes;
 pub mod utils;
 
 use middleware::api_key::ApiKeyMiddlewareFactory;
+use routes::auth::create_api_key;
 use routes::extract::extract_files;
 use routes::health::health_check;
 use routes::task::get_task_status;
@@ -56,6 +57,7 @@ pub fn main() -> std::io::Result<()> {
                         .error_handler(handle_multipart_error),
                 )
                 .route("/", web::get().to(health_check))
+                .route("/create_api_key", web::post().to(create_api_key))
                 .route("/health", web::get().to(health_check))
                 .service(
                     web::scope("/api")
