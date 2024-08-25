@@ -81,15 +81,9 @@ async fn process_file(
 
     for temp_file in &temp_files {
         let json_output = if model == ModelInternal::PdlaFast {
-<<<<<<< HEAD
-            handle_fast_requests(&temp_file).await?
-        } else if model == ModelInternal::Pdla {
-            handle_high_quality_requests(&temp_file).await?
-=======
             handle_fast_requests(temp_file).await?
         } else if model == ModelInternal::Pdla {
             handle_high_quality_requests(temp_file).await?
->>>>>>> main
         } else {
             return Err(format!("Invalid model: {}", model).into());
         };

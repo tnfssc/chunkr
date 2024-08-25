@@ -52,14 +52,7 @@ pub async fn create_task(
 ) -> Result<TaskResponse, Box<dyn Error>> {
     dotenv().ok();
     let mut client: Client = pool.get().await?;
-<<<<<<< HEAD
-    let expiration = env::var("INGEST_SERVER__EXPIRATION")
-        .ok()
-        .map(|val| val)
-        .or(None);
-=======
     let expiration = env::var("INGEST_SERVER__EXPIRATION").ok().or(None);
->>>>>>> main
     let created_at: DateTime<Utc> = Utc::now();
     let expiration_time: Option<DateTime<Utc>> = expiration.clone().map(|exp| {
         let std_duration: Duration = humantime::parse_duration(&exp).unwrap();
@@ -83,15 +76,7 @@ pub async fn create_task(
             }
         };
 
-<<<<<<< HEAD
-        let file_name = file
-            .file_name
-            .as_ref()
-            .map(String::as_str)
-            .unwrap_or("unknown.pdf");
-=======
         let file_name = file.file_name.as_deref().unwrap_or("unknown.pdf");
->>>>>>> main
         let s3_path = format!(
             "s3://{}/{}/{}/{}/{}",
             bucket_name, user_id, task_id, file_id, file_name
@@ -151,15 +136,9 @@ pub async fn create_task(
                 task_id: task_id.clone(),
             };
 
-<<<<<<< HEAD
-            let _ = produce_extraction_payloads(extraction_payload).await?;
-
-            return Ok(TaskResponse {
-=======
             produce_extraction_payloads(extraction_payload).await?;
 
             Ok(TaskResponse {
->>>>>>> main
                 task_id: task_id.clone(),
                 status: Status::Starting,
                 created_at,
@@ -169,20 +148,11 @@ pub async fn create_task(
                 task_url: Some(task_url),
                 message: "Extraction started".to_string(),
                 model: model.to_external(),
-<<<<<<< HEAD
-            });
-        } else {
-            return Err("Failed to upload file".into());
-        }
-    } else {
-        return Err("Not a valid PDF".into());
-=======
             })
         } else {
             Err("Failed to upload file".into())
         }
     } else {
         Err("Not a valid PDF".into())
->>>>>>> main
     }
 }
