@@ -1,8 +1,8 @@
+use super::extract::Model;
 use chrono::{DateTime, Utc};
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
-use super::extraction::Model;
-use strum_macros::{EnumString, Display};
+use strum_macros::{Display, EnumString};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TaskResponse {
@@ -17,7 +17,9 @@ pub struct TaskResponse {
     pub model: Model,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, EnumString, Display)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, EnumString, Display,
+)]
 pub enum Status {
     Starting,
     Processing,
@@ -25,4 +27,3 @@ pub enum Status {
     Failed,
     Canceled,
 }
-
