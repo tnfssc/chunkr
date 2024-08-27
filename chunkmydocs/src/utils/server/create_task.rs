@@ -140,16 +140,6 @@ pub async fn create_task(
         ]
     ).await?;
 
-    // Update API key usage
-    tx.execute(
-        "INSERT INTO public.api_key_usage (api_key, usage, usage_type, service) 
-        VALUES ($1, $2, 'page_count', 'ingestion') 
-        ON CONFLICT (api_key, usage_type, service) 
-        DO UPDATE SET usage = public.api_key_usage.usage + $2",
-        &[&api_key, &page_count],
-    )
-    .await?;
-
     tx.commit().await?;
 
     let extraction_payload = ExtractionPayload {
