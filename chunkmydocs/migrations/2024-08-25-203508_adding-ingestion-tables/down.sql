@@ -1,4 +1,6 @@
 -- This file should undo anything in `up.sql`
+DROP TRIGGER IF EXISTS update_api_key_usage_trigger ON INGESTION_TASKS;
+DROP FUNCTION IF EXISTS update_api_key_usage();
 DROP TABLE IF EXISTS INGESTION_FILES;
 DROP TABLE IF EXISTS INGESTION_TASKS;
 DROP TABLE IF EXISTS USAGE_LIMIT;

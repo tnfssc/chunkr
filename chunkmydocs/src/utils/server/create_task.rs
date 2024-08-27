@@ -50,105 +50,129 @@ pub async fn create_task(
 ) -> Result<TaskResponse, Box<dyn Error>> {
     let mut client: Client = pool.get().await?;
     let config = Config::from_env()?;
-    let expiration = config.task_expiration;
     let created_at: DateTime<Utc> = Utc::now();
-    let expiration_time: Option<DateTime<Utc>> = expiration.map(|exp| Utc::now() + exp);
+    let expiration_time: Option<DateTime<Utc>> = config.task_expiration.map(|exp| Utc::now() + exp);
 
-    let bucket_name = config.s3_bucket;
-    let ingest_batch_size = config.batch_size;
-    let base_url = config.base_url;
-    let task_url = format!("{}/task/{}", base_url, task_id);
-
-    let file_id = Uuid::new_v4().to_string();
     let buffer: Vec<u8> = std::fs::read(file.file.path())?;
 
-    if is_valid_pdf(&buffer)? {
-        let file_size = file.size;
-        let page_count = match Document::load_mem(&buffer) {
-            Ok(doc) => doc.get_pages().len() as i32,
-            Err(_) => {
-                return Err("Unable to count pages".into());
-            }
-        };
-
-        let file_name = file.file_name.as_deref().unwrap_or("unknown.pdf");
-        let s3_path = format!(
-            "s3://{}/{}/{}/{}/{}",
-            bucket_name, user_id, task_id, file_id, file_name
-        );
-        let output_extension = model.get_extension();
-        let output_s3_path = s3_path.replace(".pdf", &format!(".{}", output_extension));
-
-        match upload_to_s3(s3_client, &s3_path, file.file.path()).await {
-            Ok(_) => {
-                let tx = client.transaction().await?;
-
-                tx.execute(
-                    "INSERT INTO ingestion_tasks (task_id, file_count, total_size, total_pages, created_at, finished_at, api_key, url, status, model, expiration_time) 
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
-                    ON CONFLICT (task_id) DO NOTHING",
-                    &[
-                        &task_id,
-                        &1i32,
-                        &(file_size as i64),
-                        &page_count,
-                        &created_at,
-                        &None::<String>,
-                        &api_key,
-                        &task_url,
-                        &Status::Starting.to_string(),
-                        &model.to_string(),
-                        &expiration_time,
-                    ]
-                ).await?;
-
-                tx.execute(
-                    "INSERT INTO ingestion_files (file_id, task_id, file_name, file_size, page_count, created_at, status, input_location, output_location, model) 
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-                    ON CONFLICT (file_id) DO NOTHING",
-                    &[
-                        &file_id,
-                        &task_id,
-                        &file.file_name,
-                        &(file_size as i64),
-                        &page_count,
-                        &created_at,
-                        &Status::Starting.to_string(),
-                        &s3_path,
-                        &output_s3_path,
-                        &model.to_string(),
-                    ]
-                ).await?;
-
-                tx.commit().await?;
-
-                let extraction_payload = ExtractionPayload {
-                    model: model.clone(),
-                    input_location: s3_path,
-                    output_location: output_s3_path,
-                    expiration: None,
-                    batch_size: Some(ingest_batch_size),
-                    file_id,
-                    task_id: task_id.clone(),
-                };
-
-                produce_extraction_payloads(extraction_payload).await?;
-
-                Ok(TaskResponse {
-                    task_id: task_id.clone(),
-                    status: Status::Starting,
-                    created_at,
-                    finished_at: None,
-                    expiration_time,
-                    file_url: None,
-                    task_url: Some(task_url),
-                    message: "Task queued".to_string(),
-                    model: model.to_external(),
-                })
-            }
-            Err(e) => Err(e),
-        }
-    } else {
-        Err("Not a valid PDF".into())
+    if !is_valid_pdf(&buffer)? {
+        return Err("Not a valid PDF".into());
     }
+
+    let file_size = file.size;
+    let page_count = match Document::load_mem(&buffer) {
+        Ok(doc) => doc.get_pages().len() as i32,
+        Err(_) => return Err("Unable to count pages".into()),
+    };
+
+    // Check current usage and limit
+    let usage_row = client.query_one(
+        "SELECT COALESCE(SUM(usage), 0) as total_usage FROM public.api_key_usage WHERE api_key = $1 AND usage_type = 'page_count'",
+        &[&api_key]
+    ).await?;
+    let current_usage: i64 = usage_row.get("total_usage");
+
+    let limit_row = client.query_opt(
+        "SELECT usage_limit FROM public.api_key_limit WHERE api_key = $1 AND usage_type = 'page_count' LIMIT 1",
+        &[&api_key]
+    ).await?;
+    let usage_limit: i64 = limit_row
+        .map(|row| row.get("usage_limit"))
+        .unwrap_or(i64::MAX);
+
+    if current_usage + i64::from(page_count) > usage_limit {
+        return Err(format!(
+            "Adding a task with {} pages would exceed the usage limit of {} pages",
+            page_count.clone(),
+            usage_limit.clone()
+        )
+        .into());
+    }
+
+    let file_name = file.file_name.as_deref().unwrap_or("unknown.pdf");
+    let s3_path = format!(
+        "s3://{}/{}/{}/{}/{}",
+        config.s3_bucket,
+        user_id,
+        task_id,
+        Uuid::new_v4().to_string(),
+        file_name
+    );
+    let output_s3_path = s3_path.replace(".pdf", &format!(".{}", model.get_extension()));
+    let task_url = format!("{}/task/{}", config.base_url, task_id);
+
+    upload_to_s3(s3_client, &s3_path, file.file.path()).await?;
+
+    let tx = client.transaction().await?;
+
+    tx.execute(
+        "INSERT INTO ingestion_tasks (task_id, file_count, total_size, total_pages, created_at, finished_at, api_key, url, status, model, expiration_time) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        &[
+            &task_id,
+            &1i32,
+            &(file_size as i64),
+            &page_count,
+            &created_at,
+            &None::<String>,
+            &api_key,
+            &task_url,
+            &Status::Starting.to_string(),
+            &model.to_string(),
+            &expiration_time,
+        ]
+    ).await?;
+
+    tx.execute(
+        "INSERT INTO ingestion_files (file_id, task_id, file_name, file_size, page_count, created_at, status, input_location, output_location, model) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+        &[
+            &Uuid::new_v4().to_string(),
+            &task_id,
+            &file_name,
+            &(file_size as i64),
+            &page_count,
+            &created_at,
+            &Status::Starting.to_string(),
+            &s3_path,
+            &output_s3_path,
+            &model.to_string(),
+        ]
+    ).await?;
+
+    // Update API key usage
+    tx.execute(
+        "INSERT INTO public.api_key_usage (api_key, usage, usage_type, service) 
+        VALUES ($1, $2, 'page_count', 'ingestion') 
+        ON CONFLICT (api_key, usage_type, service) 
+        DO UPDATE SET usage = public.api_key_usage.usage + $2",
+        &[&api_key, &page_count],
+    )
+    .await?;
+
+    tx.commit().await?;
+
+    let extraction_payload = ExtractionPayload {
+        model: model.clone(),
+        input_location: s3_path,
+        output_location: output_s3_path,
+        expiration: None,
+        batch_size: Some(config.batch_size),
+        file_id: Uuid::new_v4().to_string(),
+        task_id: task_id.clone(),
+    };
+
+    produce_extraction_payloads(extraction_payload).await?;
+
+    Ok(TaskResponse {
+        task_id: task_id.clone(),
+        status: Status::Starting,
+        created_at,
+        finished_at: None,
+        expiration_time,
+        file_url: None,
+        task_url: Some(task_url),
+        message: "Extraction started".to_string(),
+        model: model.to_external(),
+    })
 }

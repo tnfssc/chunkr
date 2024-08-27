@@ -50,3 +50,19 @@ CREATE TABLE IF NOT EXISTS INGESTION_FILES (
     model TEXT,
     FOREIGN KEY (task_id) REFERENCES INGESTION_TASKS(task_id) ON DELETE CASCADE
 );
+
+CREATE OR REPLACE FUNCTION update_api_key_usage() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.api_key_usage (api_key, usage, usage_type, service)
+    VALUES (NEW.api_key, NEW.total_pages, 'page_count', 'ingestion')
+    ON CONFLICT (api_key, usage_type, service)
+    DO UPDATE SET usage = public.api_key_usage.usage + NEW.total_pages;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update API key usage after inserting a new ingestion task
+CREATE TRIGGER update_api_key_usage_trigger
+AFTER INSERT ON INGESTION_TASKS
+FOR EACH ROW
+EXECUTE FUNCTION update_api_key_usage();
