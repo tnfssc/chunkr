@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "table-ocr"
+version = "0.1.0"
+description = ""
+authors = ["Chunk my docs"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+paddlepaddle = "^2.6.1"
+paddleocr = ">=2.0.1"
+
+[tool.poetry.scripts]
+table-ocr = "table_ocr.main:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
