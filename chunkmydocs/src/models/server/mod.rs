@@ -3,3 +3,4 @@ pub mod task;
 pub mod tasks;
 pub mod segment;
 pub mod user;
+pub mod pdf;

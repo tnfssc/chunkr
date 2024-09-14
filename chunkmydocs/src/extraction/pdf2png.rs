@@ -4,6 +4,7 @@ use reqwest::{multipart, Client as ReqwestClient};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::sync::OnceCell;
+use std::collections::HashMap;
 
 static REQWEST_CLIENT: OnceCell<ReqwestClient> = OnceCell::const_new();
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -29,6 +30,17 @@ impl From<&Segment> for BoundingBox {
             bb_id: uuid::Uuid::new_v4().to_string(),
         }
     }
+}
+
+#[derive(Deserialize)]
+struct PageImage {
+    page_number: u32,
+    base64_png: String,
+}
+
+#[derive(Deserialize)]
+struct ConvertAllPagesResponse {
+    pages: Vec<PageImage>,
 }
 
 // Define the ConversionResponse struct
@@ -138,6 +150,45 @@ pub async fn convert_pdf_to_png(
     let response_json: ConversionResponse = response.json().await?;
 
     Ok(response_json)
+}
+
+pub async fn convert_all_pdf_pages(
+    pdf_path: &Path,
+    dpi: u32,
+) -> Result<HashMap<u32, String>, Box<dyn std::error::Error>> {
+    let client = get_reqwest_client().await;
+    let config = Config::from_env()?;
+    let url = format!("{}/convert_all_pages", config.url);
+
+    let file_name = pdf_path
+        .file_name()
+        .ok_or_else(|| "Invalid file name")?
+        .to_str()
+        .ok_or_else(|| "Non-UTF8 file name")?;
+
+    let file_content = tokio::fs::read(pdf_path).await?;
+    let part = multipart::Part::bytes(file_content).file_name(file_name.to_string());
+
+    let form = multipart::Form::new()
+        .part("file", part)
+        .text("dpi", dpi.to_string());
+
+    let response = client
+        .post(url)
+        .multipart(form)
+        .send()
+        .await?
+        .error_for_status()?;
+
+    let response_json: ConvertAllPagesResponse = response.json().await?;
+
+    let pages_map: HashMap<u32, String> = response_json
+        .pages
+        .into_iter()
+        .map(|page| (page.page_number, page.base64_png))
+        .collect();
+
+    Ok(pages_map)
 }
 
 #[cfg(test)]

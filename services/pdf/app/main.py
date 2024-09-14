@@ -75,6 +75,32 @@ async def convert_pdf_to_png(
     
     return {"png_pages": png_pages}
 
+@app.post("/convert_all_pages")
+async def convert_all_pdf_pages(
+    file: UploadFile = File(...),
+    dpi: int = Form(150)
+):
+    pdf_bytes = await file.read()
+    
+    # Convert PDF to images
+    pdf_images = convert_from_bytes(pdf_bytes, dpi=dpi)
+    
+    all_pages = []
+    
+    for page_number, img in enumerate(pdf_images, start=1):
+        # Convert to PNG
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        png_data = buffer.getvalue()
+        base64_png = base64.b64encode(png_data).decode()
+        
+        all_pages.append({
+            "page_number": page_number,
+            "base64_png": base64_png
+        })
+    
+    return {"pages": all_pages}
+
 @app.post("/split")
 async def split_pdf(
     file: UploadFile = File(...),
