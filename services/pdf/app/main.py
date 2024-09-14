@@ -7,6 +7,7 @@ import io
 from PyPDF2 import PdfReader, PdfWriter
 from pdf2image import convert_from_bytes
 import math
+import gc
 
 app = FastAPI()
 
@@ -83,7 +84,7 @@ async def convert_all_pdf_pages(
     pdf_bytes = await file.read()
     
     # Convert PDF to images
-    pdf_images = convert_from_bytes(pdf_bytes, dpi=dpi)
+    pdf_images = convert_from_bytes(pdf_bytes, dpi=dpi, single_file=True)
     
     all_pages = []
     
@@ -98,6 +99,9 @@ async def convert_all_pdf_pages(
             "page_number": page_number,
             "base64_png": base64_png
         })
+
+        del img
+        gc.collect()
     
     return {"pages": all_pages}
 
