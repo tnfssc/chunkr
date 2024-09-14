@@ -105,7 +105,7 @@ def test_all_page_conversion():
     # Set up the request
     url = "http://localhost:8080/convert_all_pages"
     files = {"file": ("test.pdf", open(pdf_file_path, "rb"), "application/pdf")}
-    data = {"dpi": 300}  
+    data = {"dpi": 150, "format": "png"}  
 
     try:
         response = requests.post(url, files=files, data=data)
@@ -121,5 +121,10 @@ def test_all_page_conversion():
 
 if __name__ == "__main__":
     # test_pdf_conversion()
-    test_pdf_split()
-    # test_all_page_conversion()
+    # test_pdf_split()
+    import time
+
+    start_time = time.time()
+    test_all_page_conversion()
+    end_time = time.time()
+    print(f"Time taken for all page conversion: {end_time - start_time:.2f} seconds")
