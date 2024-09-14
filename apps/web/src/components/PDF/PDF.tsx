@@ -58,32 +58,41 @@ export function PDF({
   }
 
   useEffect(() => {
-    convertAllPages(inputFileUrl);
+    convertAllPages(inputFileUrl)
+      // .then((data) => {
+      //   console.log(data);
+      // })
+      .catch((error) => {
+        console.error(error);
+      });
   }, [inputFileUrl]);
 
   return (
-    <Document
-      file={inputFileUrl}
-      onLoadSuccess={onDocumentLoadSuccess}
-      options={options}
-    >
-      <ScrollArea
-        scrollbars="both"
-        type="always"
-        style={{ height: "calc(100vh - 90px)" }}
-      >
-        <div className="flex flex-col items-center space-y-2">
-          {Array.from(new Array(numPages), (_, index) => (
-            <CurrentPage
-              key={index}
-              index={index}
-              segments={content}
-              onSegmentClick={onSegmentClick}
-            />
-          ))}
-        </div>
-      </ScrollArea>
-    </Document>
+    <div>
+      <h1>PDF</h1>
+    </div>
+    // <Document
+    //   file={inputFileUrl}
+    //   onLoadSuccess={onDocumentLoadSuccess}
+    //   options={options}
+    // >
+    //   <ScrollArea
+    //     scrollbars="both"
+    //     type="always"
+    //     style={{ height: "calc(100vh - 90px)" }}
+    //   >
+    //     <div className="flex flex-col items-center space-y-2">
+    //       {Array.from(new Array(numPages), (_, index) => (
+    //         <CurrentPage
+    //           key={index}
+    //           index={index}
+    //           segments={content}
+    //           onSegmentClick={onSegmentClick}
+    //         />
+    //       ))}
+    //     </div>
+    //   </ScrollArea>
+    // </Document>
   );
 }
 
