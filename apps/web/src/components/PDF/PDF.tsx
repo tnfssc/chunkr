@@ -58,10 +58,10 @@ export function PDF({
   }
 
   useEffect(() => {
-    convertAllPages(inputFileUrl)
-      // .then((data) => {
-      //   console.log(data);
-      // })
+    convertAllPages(inputFileUrl, 150)
+      .then((data) => {
+        console.log(data);
+      })
       .catch((error) => {
         console.error(error);
       });
