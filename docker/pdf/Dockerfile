@@ -18,7 +18,5 @@ COPY services/pdf .
 # Make port 8000 available to the world outside this container
 EXPOSE 8000
 
-WORKDIR /app/services/pdf/app
-
 # Run the FastAPI server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

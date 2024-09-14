@@ -8,7 +8,7 @@ from PyPDF2 import PdfReader
 from pdf2image import convert_from_bytes
 import math
 import uvicorn
-from split import split_pdf_bytes
+from .split import split_pdf_bytes
 
 app = FastAPI()
 
