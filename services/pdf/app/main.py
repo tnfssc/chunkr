@@ -101,15 +101,22 @@ async def split_pdf(
 async def convert_all_pdf_pages(
     file: UploadFile = File(...),
     dpi: int = Form(300),
-    format: str = Query("png", pattern="^(png|jpg)$")
+    format: str = Query("png", pattern="^(png|jpg)$"),
+    split: bool = Form(True)
 ):
     pdf_bytes = await file.read()
-    split_pdfs = split_pdf_bytes(pdf_bytes, pages_per_split=1)
 
-    def process_page(split_pdf):
-        pdf_bytes = base64.b64decode(split_pdf["base64_pdf"])
+    def process_page(page_data):
+        if split:
+            pdf_bytes = base64.b64decode(page_data["base64_pdf"])
+            page_number = page_data["split_number"]
+            first_page = last_page = 1
+        else:
+            page_number = page_data["page_number"]
+            first_page = last_page = page_number
+
         img = convert_from_bytes(
-            pdf_bytes, dpi=dpi, first_page=1, last_page=1)[0]
+            pdf_bytes, dpi=dpi, first_page=first_page, last_page=last_page)[0]
         buffer = io.BytesIO()
         if format == "jpg":
             img = img.convert("RGB")
@@ -117,13 +124,20 @@ async def convert_all_pdf_pages(
         else:
             img.save(buffer, format="PNG", optimize=True)
         return {
-            "page_number": split_pdf["split_number"],
+            "page_number": page_number,
             "base64_image": base64.b64encode(buffer.getvalue()).decode(),
             "format": format
         }
 
+    if split:
+        split_pdfs = split_pdf_bytes(pdf_bytes, pages_per_split=1)
+        page_data = split_pdfs
+    else:
+        total_pages = len(PdfReader(io.BytesIO(pdf_bytes)).pages)
+        page_data = [{"page_number": i + 1} for i in range(total_pages)]
+
     with ThreadPoolExecutor() as executor:
-        all_pages = list(executor.map(process_page, split_pdfs))
+        all_pages = list(executor.map(process_page, page_data))
 
     return {"pages": all_pages}
 

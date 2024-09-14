@@ -105,7 +105,7 @@ def test_all_page_conversion():
     # Set up the request
     url = "http://localhost:8080/convert_all_pages"
     files = {"file": ("test.pdf", open(pdf_file_path, "rb"), "application/pdf")}
-    data = {"dpi": 150, "format": "png"}  
+    data = {"dpi": 300, "format": "png", "split_pages": True}  
 
     try:
         response = requests.post(url, files=files, data=data)
