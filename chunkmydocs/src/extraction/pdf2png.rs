@@ -4,7 +4,6 @@ use reqwest::{multipart, Client as ReqwestClient};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::sync::OnceCell;
-use std::collections::HashMap;
 
 static REQWEST_CLIENT: OnceCell<ReqwestClient> = OnceCell::const_new();
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -32,14 +31,14 @@ impl From<&Segment> for BoundingBox {
     }
 }
 
-#[derive(Deserialize)]
-struct PageImage {
+#[derive(Deserialize, Serialize)]
+pub struct PageImage {
     page_number: u32,
     base64_png: String,
 }
 
-#[derive(Deserialize)]
-struct ConvertAllPagesResponse {
+#[derive(Deserialize, Serialize)]
+pub struct ConvertAllPagesResponse {
     pages: Vec<PageImage>,
 }
 
@@ -155,7 +154,7 @@ pub async fn convert_pdf_to_png(
 pub async fn convert_all_pdf_pages(
     pdf_path: &Path,
     dpi: u32,
-) -> Result<HashMap<u32, String>, Box<dyn std::error::Error>> {
+) -> Result<ConvertAllPagesResponse, Box<dyn std::error::Error>> {
     let client = get_reqwest_client().await;
     let config = Config::from_env()?;
     let url = format!("{}/convert_all_pages", config.url);
@@ -182,13 +181,7 @@ pub async fn convert_all_pdf_pages(
 
     let response_json: ConvertAllPagesResponse = response.json().await?;
 
-    let pages_map: HashMap<u32, String> = response_json
-        .pages
-        .into_iter()
-        .map(|page| (page.page_number, page.base64_png))
-        .collect();
-
-    Ok(pages_map)
+    Ok(response_json)
 }
 
 #[cfg(test)]

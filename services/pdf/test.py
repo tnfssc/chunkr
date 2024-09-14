@@ -97,7 +97,29 @@ def test_pdf_split():
     print("PDF split test passed successfully.")
     print(f"Split PDFs saved in {output_dir}")
 
+def test_all_page_conversion():
+    # Define the PDF file path
+    pdf_file_path = "/Users/akhileshsharma/Documents/Lumina/chunk-my-docs/pyscripts/input/JAZZ-Equity-Research-Report.pdf"
+    output_dir = "./output"
+
+    # Set up the request
+    url = "http://34.49.228.86/convert_all_pages"
+    files = {"file": ("test.pdf", open(pdf_file_path, "rb"), "application/pdf")}
+    data = {"dpi": 75}  # No bounding boxes
+
+    try:
+        response = requests.post(url, files=files, data=data)
+        response.raise_for_status()  # Raise an error for bad status codes
+        with open(os.path.join(output_dir, f"converted_all_pages.json"), "wb") as f:
+            f.write(response.content)
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        return
+
+    # Check if the conversion was successful
+    assert response.status_code == 200
 
 if __name__ == "__main__":
     # test_pdf_conversion()
-    test_pdf_split()
+    # test_pdf_split()
+    test_all_page_conversion()
