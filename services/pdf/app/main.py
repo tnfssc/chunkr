@@ -4,10 +4,11 @@ from typing import List, Dict
 import base64
 import json
 import io
-from PyPDF2 import PdfReader, PdfWriter
+from PyPDF2 import PdfReader
 from pdf2image import convert_from_bytes
 import math
-import gc
+import uvicorn
+from split import split_pdf_bytes
 
 app = FastAPI()
 
@@ -76,64 +77,39 @@ async def convert_pdf_to_png(
     
     return {"png_pages": png_pages}
 
-@app.post("/convert_all_pages")
-async def convert_all_pdf_pages(
-    file: UploadFile = File(...),
-    dpi: int = Form(150)
-):
-    pdf_bytes = await file.read()
-    
-    # Convert PDF to images
-    pdf_images = convert_from_bytes(pdf_bytes, dpi=dpi, single_file=True)
-    
-    all_pages = []
-    
-    for page_number, img in enumerate(pdf_images, start=1):
-        # Convert to PNG
-        buffer = io.BytesIO()
-        img.save(buffer, format="PNG")
-        png_data = buffer.getvalue()
-        base64_png = base64.b64encode(png_data).decode()
-        
-        all_pages.append({
-            "page_number": page_number,
-            "base64_png": base64_png
-        })
-
-        del img
-        gc.collect()
-    
-    return {"pages": all_pages}
 
 @app.post("/split")
 async def split_pdf(
     file: UploadFile = File(...),
     pages_per_split: int = Form(...)
 ):
-    split_pdfs = []
     pdf_bytes = await file.read()
-    
-    with io.BytesIO(pdf_bytes) as pdf_file:
-        reader = PdfReader(pdf_file)
-        total_pages = len(reader.pages)
-        
-        for i in range(0, total_pages, pages_per_split):
-            start_page = i
-            end_page = min(i + pages_per_split, total_pages)
-            
-            writer = PdfWriter()
-            for page_num in range(start_page, end_page):
-                writer.add_page(reader.pages[page_num])
-            
-            output = io.BytesIO()
-            writer.write(output)
-            output.seek(0)
-            
-            base64_pdf = base64.b64encode(output.getvalue()).decode()
-            split_pdfs.append({
-                "split_number": i//pages_per_split + 1,
-                "base64_pdf": base64_pdf
-            })
-    
+    split_pdfs = split_pdf_bytes(pdf_bytes, pages_per_split)
     return {"split_pdfs": split_pdfs}
 
+
+@app.post("/convert_all_pages")
+async def convert_all_pdf_pages(
+    file: UploadFile = File(...),
+    dpi: int = Form(300)
+):
+    pdf_bytes = await file.read()
+    split_pdfs = split_pdf_bytes(pdf_bytes, pages_per_split=1)
+    all_pages = []
+    for split_pdf in split_pdfs:
+        pdf_bytes = base64.b64decode(split_pdf["base64_pdf"])
+        pdf_images = convert_from_bytes(pdf_bytes, dpi=dpi)
+        img = pdf_images[0]
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        png_data = buffer.getvalue()
+        base64_png = base64.b64encode(png_data).decode()
+        all_pages.append({
+            "page_number": split_pdf["split_number"],
+            "base64_png": base64_png
+        })
+    return {"pages": all_pages}
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8080)

@@ -62,10 +62,11 @@ def test_pdf_conversion():
     
 def test_pdf_split():
     # Define the PDF file path
-    pdf_file_path = "/Users/ishaankapoor/chunk-my-docs/services/pdf/input/test.pdf"
+    pdf_file_path = "/Users/akhileshsharma/Documents/Lumina/chunk-my-docs/pyscripts/input/JAZZ-Equity-Research-Report.pdf"
+    output_dir = "./output"
 
     # Set up the request
-    url = "http://localhost:8000/split"
+    url = "http://localhost:8080/split"
     files = {"file": ("test.pdf", open(pdf_file_path, "rb"), "application/pdf")}
     data = {"pages_per_split": 2}  # Split every 2 pages
 
@@ -82,7 +83,6 @@ def test_pdf_split():
     assert "split_pdfs" in response_json
 
     # Save the split PDFs
-    output_dir = "/Users/ishaankapoor/chunk-my-docs/services/pdf/output/split"
     os.makedirs(output_dir, exist_ok=True)
 
     for split in response_json["split_pdfs"]:
@@ -103,9 +103,9 @@ def test_all_page_conversion():
     output_dir = "./output"
 
     # Set up the request
-    url = "http://34.49.228.86/convert_all_pages"
+    url = "http://localhost:8080/convert_all_pages"
     files = {"file": ("test.pdf", open(pdf_file_path, "rb"), "application/pdf")}
-    data = {"dpi": 75}  # No bounding boxes
+    data = {"dpi": 300}  
 
     try:
         response = requests.post(url, files=files, data=data)
@@ -121,5 +121,5 @@ def test_all_page_conversion():
 
 if __name__ == "__main__":
     # test_pdf_conversion()
-    # test_pdf_split()
-    test_all_page_conversion()
+    test_pdf_split()
+    # test_all_page_conversion()

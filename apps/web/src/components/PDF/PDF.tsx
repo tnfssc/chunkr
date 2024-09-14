@@ -58,7 +58,7 @@ export function PDF({
   }
 
   useEffect(() => {
-    convertAllPages(inputFileUrl, 150)
+    convertAllPages(inputFileUrl, 300)
       .then((data) => {
         console.log(data);
       })

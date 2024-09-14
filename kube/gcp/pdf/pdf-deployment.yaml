@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: pdf
-        image: luminainc/pdf:51f55d9
+        image: luminainc/pdf:444275a
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
