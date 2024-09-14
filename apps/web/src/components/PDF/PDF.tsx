@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { pdfjs, Document, Page } from "react-pdf";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
 import { ScrollArea } from "@radix-ui/themes";
 import { Chunk, Segment, SegmentType } from "../../models/chunk.model";
 import "./PDF.css";
+import { convertAllPages } from "../../services/pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -55,6 +56,10 @@ export function PDF({
   function onDocumentLoadSuccess(document: pdfjs.PDFDocumentProxy): void {
     setNumPages(document.numPages);
   }
+
+  useEffect(() => {
+    convertAllPages(inputFileUrl);
+  }, [inputFileUrl]);
 
   return (
     <Document

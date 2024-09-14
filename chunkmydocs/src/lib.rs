@@ -20,7 +20,7 @@ use routes::user::get_or_create_user;
 use routes::health::health_check;
 use routes::task::{ create_extraction_task, get_task_status };
 use routes::tasks::get_tasks_status;
-use routes::usage::get_usage;
+use routes::pdf::get_pdf_pages;
 use utils::db::deadpool_postgres;
 use utils::storage::config_s3::create_client;
 use utils::server::admin_user::get_or_create_admin_user;
@@ -140,7 +140,7 @@ pub fn main() -> std::io::Result<()> {
                 .route("/task", web::post().to(create_extraction_task))
                 .route("/task/{task_id}", web::get().to(get_task_status))
                 .route("/tasks", web::get().to(get_tasks_status))
-                .route("/usage", web::get().to(get_usage));
+                .route("/pdf/pages", web::post().to(get_pdf_pages));
 
             if
                 std::env::var("STRIPE__API_KEY").is_ok() &&
