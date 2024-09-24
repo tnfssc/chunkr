@@ -185,41 +185,86 @@ class TestPDLAServer(unittest.TestCase):
         if not pdf_files:
             raise ValueError("No PDF files found in the input folder.")
         
-        # Duplicate the first PDF file
-        original_pdf = pdf_files[0]
-        test_pdfs = [original_pdf] * num_parallel_requests
+        # Use the first PDF file as the source
+        source_pdf = pdf_files[0]
+        print(f"Using source PDF: {source_pdf}")
+
+        # Create temporary directory for duplicates
+        temp_dir = self.output_folder / "temp_parallel_test"
+        temp_dir.mkdir(exist_ok=True)
+
+        # Create duplicates
+        test_pdfs = []
+        for i in range(num_parallel_requests):
+            new_path = temp_dir / f"test_pdf_{i}.pdf"
+            shutil.copy(source_pdf, new_path)
+            test_pdfs.append(new_path)
         
-        def process_pdf(pdf_path):
+        print(f"Created {len(test_pdfs)} duplicate PDFs for testing")
+
+        def process_pdf_wrapper(pdf_path):
             start_time = time.time()
-            self.process_pdf(pdf_path)
-            end_time = time.time()
-            processing_time = end_time - start_time
-            return pdf_path.name, processing_time
+            try:
+                response = self.process_pdf(pdf_path)
+                end_time = time.time()
+                processing_time = end_time - start_time
+                num_pages = len(PdfReader(pdf_path).pages)
+                throughput = num_pages / processing_time
+                
+                if response.status_code != 200:
+                    error_message = f"Response status code for {pdf_path.name}: {response.status_code}\n"
+                    error_message += f"Request URL: {response.request.url}\n"
+                    error_message += f"Request method: {response.request.method}\n"
+                    error_message += f"Request headers: {response.request.headers}\n"
+                    error_message += f"Response headers: {response.headers}\n"
+                    error_message += f"Response content: {response.text}\n"
+                    print(error_message)
+                    return pdf_path.name, processing_time, num_pages, throughput, error_message
+                
+                return pdf_path.name, processing_time, num_pages, throughput, None
+            except Exception as e:
+                end_time = time.time()
+                processing_time = end_time - start_time
+                error_message = f"Error processing {pdf_path.name}: {str(e)}"
+                print(error_message)
+                return pdf_path.name, processing_time, 0, 0, error_message
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_parallel_requests) as executor:
-            results = list(executor.map(process_pdf, test_pdfs))
+            futures = [executor.submit(process_pdf_wrapper, pdf) for pdf in test_pdfs]
+            results = [future.result() for future in concurrent.futures.as_completed(futures)]
         
         # Log results
         csv_path = self.output_folder / f"parallel_requests_results_{num_parallel_requests}_requests.csv"
-        fieldnames = ['PDF Name', 'Processing Time (seconds)']
+        fieldnames = ['PDF Name', 'Processing Time (seconds)', 'Number of Pages', 'Throughput (pages/sec)', 'Error']
         
         with open(csv_path, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             
-            for pdf_name, processing_time in results:
+            for pdf_name, processing_time, num_pages, throughput, error in results:
                 row_data = {
                     'PDF Name': pdf_name,
-                    'Processing Time (seconds)': processing_time
+                    'Processing Time (seconds)': processing_time,
+                    'Number of Pages': num_pages,
+                    'Throughput (pages/sec)': throughput,
+                    'Error': error if error else 'None'
                 }
                 writer.writerow(row_data)
-                print(f"Processed {pdf_name} in {processing_time:.2f} seconds.")
+                if error:
+                    print(f"Error processing {pdf_name}: {error}")
+                else:
+                    print(f"Processed {pdf_name} in {processing_time:.2f} seconds. Throughput: {throughput:.2f} pages/sec")
         
         print(f"Parallel requests test results saved to {csv_path}")
         print("Parallel requests test completed successfully.")
+
+        # Clean up temporary files
+        shutil.rmtree(temp_dir)
+        print("Cleaned up temporary test files")
+
 if __name__ == "__main__":
     tester = TestPDLAServer()
     tester.setUp()
     # Example of running throughput_test with user-provided parameters
-    tester.throughput_test(GrowthFunc.LINEAR, start_page=18, end_page=88, num_pdfs=5)
-    # tester.test_parallel_requests(num_parallel_requests=2)
+    # tester.throughput_test(GrowthFunc.LINEAR, start_page=18, end_page=88, num_pdfs=5)
+    tester.test_parallel_requests(num_parallel_requests=2)
