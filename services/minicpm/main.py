@@ -42,23 +42,16 @@ except Exception as e:
 tokenizer = AutoTokenizer.from_pretrained('openbmb/MiniCPM-V-2_6', trust_remote_code=True)
 
 image = Image.open('table_image.jpg').convert('RGB')
-question = 'You are an expert at processing images of tables. You can perfectly extract the text and cells from the table to reconstruct it as HTML code. Only return the HTML for reconstructing the table. Make sure that empty cells if present are also included.'
+question = 'You are an expert at processing images of tables. You can perfectly extract every single cell and the corresponding text from the table image to reconstruct it as an HTML table. Make sure that empty cells are also included. Only return the HTML code. '
 msgs = [{'role': 'user', 'content': [image, question]}]
 
 res = model.chat(
     image=None,
     msgs=msgs,
-    tokenizer=tokenizer
+    tokenizer=tokenizer,
+    temperature=0.0
 )
 print(res)
- 
-res = model.chat(
-    image=None,
-    msgs=msgs,
-    tokenizer=tokenizer,
-    sampling=True,
-    stream=True
-)
 
 generated_text = ""
 for new_text in res:
