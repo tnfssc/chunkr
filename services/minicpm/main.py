@@ -1,60 +1,51 @@
-# test.py
 import torch
 from PIL import Image
 from transformers import AutoModel, AutoTokenizer
-import psutil
-import os
-import gc
+import torchvision.transforms as T
+from torchvision.transforms.functional import InterpolationMode
 
-print(f"Available RAM: {psutil.virtual_memory().available / (1024 * 1024 * 1024):.2f} GB")
-if torch.cuda.is_available():
-    print(f"GPU: {torch.cuda.get_device_name(0)}")
-    print(f"Total GPU memory: {torch.cuda.get_device_properties(0).total_memory / (1024 * 1024 * 1024):.2f} GB")
-    print(f"Available GPU memory: {torch.cuda.memory_allocated(0) / (1024 * 1024 * 1024):.2f} GB")
-else:
-    print("CUDA is not available")
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD = (0.229, 0.224, 0.225)
 
-# Set environment variable for verbose logging
-os.environ['TRANSFORMERS_VERBOSITY'] = 'info'
+def build_transform(input_size):
+    MEAN, STD = IMAGENET_MEAN, IMAGENET_STD
+    transform = T.Compose([
+        T.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),
+        T.Resize((input_size, input_size), interpolation=InterpolationMode.BICUBIC),
+        T.ToTensor(),
+        T.Normalize(mean=MEAN, std=STD)
+    ])
+    return transform
 
-# Clear CUDA cache and run garbage collection
-torch.cuda.empty_cache()
-gc.collect()
+def load_image(image_file, input_size=448):
+    image = Image.open(image_file).convert('RGB')
+    transform = build_transform(input_size=input_size)
+    pixel_values = transform(image).unsqueeze(0)
+    return pixel_values
 
-try:
-    if torch.cuda.is_available() and torch.cuda.get_device_properties(0).total_memory > 17 * (1024 ** 3):  # Check if GPU has more than 17GB
-        device = "cuda"
-    else:
-        device = "cpu"
-        print("Using CPU for model inference due to insufficient GPU memory or CUDA unavailability.")
-    
-    model = AutoModel.from_pretrained('OpenGVLab/InternVL2-8B', 
-                                      trust_remote_code=True,
-                                      attn_implementation='eager',  # Changed from 'sdpa' to 'eager'
-                                      torch_dtype=torch.bfloat16,
-                                      low_cpu_mem_usage=True)
-    model = model.eval().to(device)
-    print(f"Model loaded successfully on {device}")
-except Exception as e:
-    print(f"Error loading model: {e}")
-    raise
+# Load the model
+path = 'OpenGVLab/InternVL2-8B'
+model = AutoModel.from_pretrained(
+    path,
+    torch_dtype=torch.bfloat16,
+    low_cpu_mem_usage=True,
+    use_flash_attn=True,
+    trust_remote_code=True
+).eval().cuda()
 
-tokenizer = AutoTokenizer.from_pretrained('OpenGVLab/InternVL2-8B', trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True, use_fast=False)
 
-image = Image.open('table_image.jpg').convert('RGB')
-question = 'You are an expert at processing images of tables. You can perfectly extract every single cell and the corresponding text from the table image to reconstruct it as an HTML table. You never miss any part of the table, and always maintain the correct order of the cells. You make sure that empty cells are also included, and don\'t miss any rows. Only return the HTML code.'
-msgs = [{'role': 'user', 'content': [image, question]}]
+# Load and preprocess the image
+pixel_values = load_image('table_image.jpg').to(torch.bfloat16).cuda()
 
-res = model.chat(
-    image=None,
-    msgs=msgs,
-    tokenizer=tokenizer,
-    temperature=0.1,
-    top_k=30,
-    top_p=0.90
-)
+# Set up the generation config
+generation_config = dict(max_new_tokens=1024, do_sample=True)
 
-generated_text = ""
-for new_text in res:
-    generated_text += new_text
-    print(new_text, flush=True, end='')
+# Your prompt
+question = '''<image>
+You are an expert at processing images of tables. You can perfectly extract every single cell and the corresponding text from the table image to reconstruct it as an HTML table. You never miss any part of the table, and always maintain the correct order of the cells. You make sure that empty cells are also included, and don't miss any rows. Only return the HTML code.'''
+
+# Generate the response
+response = model.chat(tokenizer, pixel_values, question, generation_config)
+
+print(f'User: {question}\nAssistant: {response}')
