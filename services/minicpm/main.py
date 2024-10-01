@@ -40,7 +40,7 @@ pixel_values = load_image('table_image.jpg').to(torch.bfloat16).cuda()
 
 # Set up the generation config
 generation_config = dict(
-    max_new_tokens=1024,
+    max_new_tokens=4096,  # Increased from 1024 to 4096
     do_sample=True,  # Set to False for deterministic output
     temperature=0.1,  # Low temperature for more focused output
     top_k=1,          # Only consider the most likely token
