@@ -43,7 +43,7 @@ generation_config = dict(
     max_new_tokens=4096,  # Increased from 1024 to 4096
     do_sample=True,  # Set to False for deterministic output
     temperature=0.1,  # Low temperature for more focused output
-    top_k=1,          # Only consider the most likely token
+    top_k=50,          # Only consider the most likely token
     top_p=0.9,        # High top_p for more focused sampling
     num_beams=1       # Use greedy decoding
 )
