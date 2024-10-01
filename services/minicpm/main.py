@@ -42,7 +42,7 @@ except Exception as e:
 tokenizer = AutoTokenizer.from_pretrained('openbmb/MiniCPM-V-2_6', trust_remote_code=True)
 
 image = Image.open('table_image.jpg').convert('RGB')
-question = 'You are an expert at processing images of tables. You can perfectly extract every single cell and the corresponding text from the table image to reconstruct it as an HTML table. You never miss any part of the table, not even a single cell. You check to make sure that cells and columns are not merged, and are exactly in the right position. You make sure that empty cells are also included. Only return the HTML code.'
+question = 'You are an expert at processing images of tables. You can perfectly extract every single cell and the corresponding text from the table image to reconstruct it as an HTML table. You never miss any part of the table, not even a single cell. You make sure that empty cells are also included. Only return the HTML code.'
 msgs = [{'role': 'user', 'content': [image, question]}]
 
 res = model.chat(
