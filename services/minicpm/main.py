@@ -29,7 +29,6 @@ model = AutoModel.from_pretrained(
     torch_dtype=torch.bfloat16,
     load_in_8bit=True,
     low_cpu_mem_usage=True,
-    use_flash_attn=True,
     trust_remote_code=True).eval()
 tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True, use_fast=False)
 
