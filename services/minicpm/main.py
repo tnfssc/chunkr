@@ -31,8 +31,7 @@ try:
     model = AutoModel.from_pretrained('openbmb/MiniCPM-V-2_6', 
                                       trust_remote_code=True,
                                       attn_implementation='sdpa', 
-                                      torch_dtype=torch.bfloat16, 
-                                      force_download=True,
+                                      torch_dtype=torch.bfloat16,
                                       low_cpu_mem_usage=True)
     model = model.eval().to(device)
     print(f"Model loaded successfully on {device}")
