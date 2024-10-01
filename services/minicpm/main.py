@@ -28,7 +28,7 @@ try:
         device = "cpu"
         print("Using CPU for model inference due to insufficient GPU memory or CUDA unavailability.")
     
-    model = AutoModel.from_pretrained('openbmb/MiniCPM-V-2_6', 
+    model = AutoModel.from_pretrained('OpenGVLab/InternVL2-8B', 
                                       trust_remote_code=True,
                                       attn_implementation='sdpa', 
                                       torch_dtype=torch.bfloat16,
@@ -39,7 +39,7 @@ except Exception as e:
     print(f"Error loading model: {e}")
     raise
 
-tokenizer = AutoTokenizer.from_pretrained('openbmb/MiniCPM-V-2_6', trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained('OpenGVLab/InternVL2-8B', trust_remote_code=True)
 
 image = Image.open('table_image.jpg').convert('RGB')
 question = 'You are an expert at processing images of tables. You can perfectly extract every single cell and the corresponding text from the table image to reconstruct it as an HTML table. You never miss any part of the table, and always maintain the correct order of the cells. You make sure that empty cells are also included, and don\'t miss any rows. Only return the HTML code.'
