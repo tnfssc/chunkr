@@ -30,7 +30,7 @@ try:
     
     model = AutoModel.from_pretrained('OpenGVLab/InternVL2-8B', 
                                       trust_remote_code=True,
-                                      attn_implementation='sdpa', 
+                                      attn_implementation='eager',  # Changed from 'sdpa' to 'eager'
                                       torch_dtype=torch.bfloat16,
                                       low_cpu_mem_usage=True)
     model = model.eval().to(device)
