@@ -26,18 +26,18 @@ variable "base_name" {
 }
 
 variable "machine_type" {
-  default     = "g2-standard-4"
-  description = "Instance Type of the required VM"
+  default     = "a2-highgpu-1g"
+  description = "Instance Type of the required VM with A100 GPU"
 }
 
 variable "vm_image" {
-  default     = "debian-cloud/debian-11"
-  description = "VM Image"
+  default     = "deeplearning-platform-release/tf-latest-gpu-v20211202"
+  description = "VM Image with GPU support"
 }
 
 variable "accelerator_type" {
-  default     = "nvidia-l4"
-  description = "Accelerator Type"
+  default     = "nvidia-tesla-a100"
+  description = "Accelerator Type (A100 GPU)"
 }
 
 provider "google" {
@@ -108,19 +108,20 @@ resource "google_compute_instance" "vm_instance" {
   allow_stopping_for_update = true
 
   guest_accelerator {
-    type  = "nvidia-l4"
+    type  = var.accelerator_type
     count = 1
   }
 
   scheduling {
     on_host_maintenance = "TERMINATE"
+    automatic_restart   = true
   }
 
   boot_disk {
     initialize_params {
       image = var.vm_image
       size  = 256
-      type  = "pd-balanced"
+      type  = "pd-ssd"  // Changed to SSD for better performance
     }
   }
 
