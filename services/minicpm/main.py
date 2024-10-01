@@ -5,7 +5,7 @@ from transformers import AutoModel, AutoTokenizer
 
 
 model = AutoModel.from_pretrained('openbmb/MiniCPM-V-2_6', trust_remote_code=True,
-    attn_implementation='sdpa', torch_dtype=torch.bfloat16) 
+    torch_dtype=torch.bfloat16)  # Removed attn_implementation='sdpa'
 model = model.eval().cuda()
 tokenizer = AutoTokenizer.from_pretrained('openbmb/MiniCPM-V-2_6', trust_remote_code=True)
 
@@ -19,7 +19,7 @@ res = model.chat(
     tokenizer=tokenizer
 )
 print(res)
-
+ 
 res = model.chat(
     image=None,
     msgs=msgs,
