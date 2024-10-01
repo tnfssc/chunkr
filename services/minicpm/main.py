@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModel, BitsAndBytesConfig
 from PIL import Image
 import torchvision.transforms as T
 from torchvision.transforms.functional import InterpolationMode
@@ -24,12 +24,21 @@ def load_image(image_file, input_size=448):
     return pixel_values
 
 path = "OpenGVLab/InternVL2-40B"
+
+# Define the quantization configuration
+quantization_config = BitsAndBytesConfig(
+    load_in_8bit=True,
+    llm_int8_threshold=6.0,
+    llm_int8_has_fp16_weight=False,
+)
+
 model = AutoModel.from_pretrained(
     path,
     torch_dtype=torch.bfloat16,
-    load_in_8bit=True,
+    quantization_config=quantization_config,
     low_cpu_mem_usage=True,
-    trust_remote_code=True).eval()
+    trust_remote_code=True
+).eval()
 tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True, use_fast=False)
 
 pixel_values = load_image('test_image.jpg').to(torch.bfloat16).cuda()
