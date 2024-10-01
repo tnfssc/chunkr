@@ -49,7 +49,7 @@ res = model.chat(
     image=None,
     msgs=msgs,
     tokenizer=tokenizer,
-    temperature=0.0
+    do_sample=False
 )
 print(res)
 
