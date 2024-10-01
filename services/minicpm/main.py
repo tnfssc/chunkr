@@ -39,7 +39,14 @@ tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True, use_fast
 pixel_values = load_image('table_image.jpg').to(torch.bfloat16).cuda()
 
 # Set up the generation config
-generation_config = dict(max_new_tokens=1024, do_sample=True)
+generation_config = dict(
+    max_new_tokens=1024,
+    do_sample=False,  # Set to False for deterministic output
+    temperature=0.1,  # Low temperature for more focused output
+    top_k=1,          # Only consider the most likely token
+    top_p=0.9,        # High top_p for more focused sampling
+    num_beams=1       # Use greedy decoding
+)
 
 # Your prompt
 question = '''<image>
