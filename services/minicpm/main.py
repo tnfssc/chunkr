@@ -43,7 +43,7 @@ except Exception as e:
 tokenizer = AutoTokenizer.from_pretrained('openbmb/MiniCPM-V-2_6', trust_remote_code=True)
 
 image = Image.open('table_image.png').convert('RGB')
-question = 'What is in the image?'
+question = 'I have provided an image of a table. You are an expert at taking table images and converting them into a perfect HTML table. Only return the HTML for reconstructing the table.'
 msgs = [{'role': 'user', 'content': [image, question]}]
 
 res = model.chat(
