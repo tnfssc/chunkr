@@ -5,7 +5,7 @@ from transformers import AutoModel, AutoTokenizer
 
 
 model = AutoModel.from_pretrained('openbmb/MiniCPM-V-2_6', trust_remote_code=True,
-    torch_dtype=torch.bfloat16)  # Removed attn_implementation='sdpa'
+    attn_implementation='sdpa', torch_dtype=torch.bfloat16, force_download=True) 
 model = model.eval().cuda()
 tokenizer = AutoTokenizer.from_pretrained('openbmb/MiniCPM-V-2_6', trust_remote_code=True)
 
