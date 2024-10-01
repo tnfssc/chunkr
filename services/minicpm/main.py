@@ -33,7 +33,6 @@ try:
                                       attn_implementation='sdpa', 
                                       torch_dtype=torch.bfloat16, 
                                       force_download=True,
-                                      device_map='auto',
                                       low_cpu_mem_usage=True)
     model = model.eval().to(device)
     print(f"Model loaded successfully on {device}")
