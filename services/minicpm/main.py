@@ -41,7 +41,7 @@ pixel_values = load_image('table_image.jpg').to(torch.bfloat16).cuda()
 # Set up the generation config
 generation_config = dict(
     max_new_tokens=1024,
-    do_sample=False,  # Set to False for deterministic output
+    do_sample=True,  # Set to False for deterministic output
     temperature=0.1,  # Low temperature for more focused output
     top_k=1,          # Only consider the most likely token
     top_p=0.9,        # High top_p for more focused sampling
@@ -50,7 +50,7 @@ generation_config = dict(
 
 # Your prompt
 question = '''<image>
-You are an expert at processing images of tables. You can perfectly extract every single cell and the corresponding text from the table image to reconstruct it as an HTML table. You never miss any part of the table, and always maintain the correct order of the cells. You make sure that empty cells are also included, and don't miss any rows. Only return the HTML code.'''
+You are an expert at processing images of tables. You can perfectly extract every single cell and the corresponding text from the table image to reconstruct it as an HTML table. You never miss any part of the table, and always maintain the correct order of the cells, especially when one cell maps to multiple rows or columns. You make sure that empty cells are also included. Only return the HTML code.'''
 
 # Generate the response
 response = model.chat(tokenizer, pixel_values, question, generation_config)
