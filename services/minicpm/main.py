@@ -1,9 +1,41 @@
-from lmdeploy import pipeline, TurbomindEngineConfig
-from lmdeploy.vl import load_image
+import torch
+from transformers import AutoTokenizer, AutoModel
+from PIL import Image
+import torchvision.transforms as T
+from torchvision.transforms.functional import InterpolationMode
 
-model = 'OpenGVLab/InternVL2-40B'
-image = load_image('test_image.jpg')
-pipe = pipeline(model, backend_config=TurbomindEngineConfig(session_len=8192))
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD = (0.229, 0.224, 0.225)
+
+def build_transform(input_size):
+    MEAN, STD = IMAGENET_MEAN, IMAGENET_STD
+    transform = T.Compose([
+        T.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),
+        T.Resize((input_size, input_size), interpolation=InterpolationMode.BICUBIC),
+        T.ToTensor(),
+        T.Normalize(mean=MEAN, std=STD)
+    ])
+    return transform
+
+def load_image(image_file, input_size=448):
+    image = Image.open(image_file).convert('RGB')
+    transform = build_transform(input_size=input_size)
+    pixel_values = transform(image).unsqueeze(0)
+    return pixel_values
+
+path = "OpenGVLab/InternVL2-40B"
+model = AutoModel.from_pretrained(
+    path,
+    torch_dtype=torch.bfloat16,
+    load_in_8bit=True,
+    low_cpu_mem_usage=True,
+    use_flash_attn=True,
+    trust_remote_code=True).eval()
+tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True, use_fast=False)
+
+pixel_values = load_image('test_image.jpg').to(torch.bfloat16).cuda()
+generation_config = dict(max_new_tokens=1024, do_sample=True)
+
 question = '''<image>
 You are an expert at processing images of tables. Your task is to meticulously extract every single cell and its corresponding text from the table image to reconstruct it as an HTML table. Follow these guidelines:
 
@@ -15,5 +47,6 @@ You are an expert at processing images of tables. Your task is to meticulously e
 6. Preserve any formatting or styling present in the original table.
 
 Only return the complete HTML code for the table, without any additional explanation or commentary.'''
-response = pipe((question, image))
-print(response.text)
+
+response = model.chat(tokenizer, pixel_values, question, generation_config)
+print(response)
