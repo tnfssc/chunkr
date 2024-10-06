@@ -22,10 +22,13 @@ export default function Auth({ children }: { children: ReactNode }) {
   }, [auth.isAuthenticated, auth.user, dispatch]);
 
   useEffect(() => {
-    auth.signinSilent();
-    dispatch(setUserData(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!auth.isAuthenticated && !auth.activeNavigator && !auth.error) {
+      auth.signinSilent().catch(() => {
+        console.warn("Silent sign-in failed, redirecting to login");
+        auth.signinRedirect();
+      });
+    }
+  }, [auth]);
 
   useEffect(() => {
     dispatch(setUserData(data ? data : null));

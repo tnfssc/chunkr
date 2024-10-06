@@ -15,8 +15,12 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     if (auth.error) {
       toast.error("Error signing in");
-      navigate("/");
-    } else if (!auth.isAuthenticated && !auth.isLoading) {
+      auth.signoutRedirect()
+        .catch((error) => {
+          console.error("Error signing out", error);
+          navigate("/");
+        });
+    } else if (!auth.isAuthenticated && !auth.isLoading && !auth.activeNavigator) {
       auth.signinRedirect();
     }
   }, [auth.error, auth.isAuthenticated, auth.isLoading, navigate, auth]);

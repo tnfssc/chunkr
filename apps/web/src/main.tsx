@@ -27,6 +27,8 @@ const oidcConfig: AuthProviderProps = {
   onSigninCallback: () => {
     window.history.replaceState({}, document.title, window.location.pathname);
   },
+  silent_redirect_uri: window.location.origin + "/silent-renew",
+  automaticSilentRenew: true,
 };
 
 const router = createBrowserRouter([
