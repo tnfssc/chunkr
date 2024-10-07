@@ -62,6 +62,7 @@ log = "0.4.22"
 utoipa-swagger-ui = { version = "7.1.0", features = ["actix-web", "vendored"] }
 mime_guess = "2.0.4"
 mime = "0.3.17"
+
 [[bin]]
 name = "fast"
 path = "src/workers/fast.rs"
