@@ -3,9 +3,17 @@ from transformers import AutoTokenizer, AutoModel
 from PIL import Image
 
 def load_model_and_tokenizer():
+    # Check CUDA availability and set device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"CUDA version: {torch.version.cuda}")
+        print(f"GPU model: {torch.cuda.get_device_name(0)}")
+
     tokenizer = AutoTokenizer.from_pretrained('ucaslcl/GOT-OCR2_0', trust_remote_code=True)
-    model = AutoModel.from_pretrained('ucaslcl/GOT-OCR2_0', trust_remote_code=True, low_cpu_mem_usage=True, device_map='cuda', use_safetensors=True, pad_token_id=tokenizer.eos_token_id)
-    return model.eval().cuda(), tokenizer
+    model = AutoModel.from_pretrained('ucaslcl/GOT-OCR2_0', trust_remote_code=True, low_cpu_mem_usage=True, device_map='auto', use_safetensors=True, pad_token_id=tokenizer.eos_token_id)
+    return model.eval().to(device), tokenizer
 
 def process_image(model, tokenizer, image_file):
     # Fine-grained OCR
