@@ -16,47 +16,44 @@ def load_model_and_tokenizer():
     return model.eval().to(device), tokenizer
 
 def process_image(model, tokenizer, image_file):
-    # Plain texts OCR
-    plain_ocr_result = model.chat(tokenizer, image_file, ocr_type='ocr')
-    
-    # Format texts OCR
-    format_ocr_result = model.chat(tokenizer, image_file, ocr_type='format')
-    
-    # Fine-grained OCR
-    fine_grained_ocr_result = model.chat(tokenizer, image_file, ocr_type='ocr', ocr_box='')
-    fine_grained_format_result = model.chat(tokenizer, image_file, ocr_type='format', ocr_box='')
-    fine_grained_color_ocr_result = model.chat(tokenizer, image_file, ocr_type='ocr', ocr_color='')
-    fine_grained_color_format_result = model.chat(tokenizer, image_file, ocr_type='format', ocr_color='')
-    
-    # Multi-crop OCR
-    multi_crop_ocr_result = model.chat_crop(tokenizer, image_file, ocr_type='ocr')
-    multi_crop_format_result = model.chat_crop(tokenizer, image_file, ocr_type='format')
-    
+    def latex_escape(text):
+        return text.replace('\\', '\\textbackslash{}').replace('&', '\\&').replace('%', '\\%').replace('$', '\\$').replace('#', '\\#').replace('_', '\\_').replace('{', '\\{').replace('}', '\\}').replace('~', '\\textasciitilde{}').replace('^', '\\textasciicircum{}')
+
+    def format_result(title, result):
+        escaped_result = latex_escape(result)
+        return f"\\subsection{{{title}}}\n\\begin{{verbatim}}\n{escaped_result}\n\\end{{verbatim}}\n"
+
+    results = {
+        'Plain OCR': model.chat(tokenizer, image_file, ocr_type='ocr'),
+        'Format OCR': model.chat(tokenizer, image_file, ocr_type='format'),
+        'Fine-grained OCR': model.chat(tokenizer, image_file, ocr_type='ocr', ocr_box=''),
+        'Fine-grained Format': model.chat(tokenizer, image_file, ocr_type='format', ocr_box=''),
+        'Fine-grained Color OCR': model.chat(tokenizer, image_file, ocr_type='ocr', ocr_color=''),
+        'Fine-grained Color Format': model.chat(tokenizer, image_file, ocr_type='format', ocr_color=''),
+        'Multi-crop OCR': model.chat_crop(tokenizer, image_file, ocr_type='ocr'),
+        'Multi-crop Format': model.chat_crop(tokenizer, image_file, ocr_type='format'),
+    }
+
+    latex_output = "\\documentclass{article}\n\\usepackage{verbatim}\n\\begin{document}\n\n\\section{OCR Results}\n"
+    for title, result in results.items():
+        latex_output += format_result(title, result)
+
     # Render the formatted OCR results
     render_result = model.chat(tokenizer, image_file, ocr_type='format', render=True, save_render_file='./demo.html')
-    
-    return {
-        'plain_ocr': plain_ocr_result,
-        'format_ocr': format_ocr_result,
-        'fine_grained_ocr': fine_grained_ocr_result,
-        'fine_grained_format': fine_grained_format_result,
-        'fine_grained_color_ocr': fine_grained_color_ocr_result,
-        'fine_grained_color_format': fine_grained_color_format_result,
-        'multi_crop_ocr': multi_crop_ocr_result,
-        'multi_crop_format': multi_crop_format_result,
-        'render': render_result
-    }
+    latex_output += f"\\subsection{{Rendered Result}}\nSaved as: ./demo.html\n"
+
+    latex_output += "\\end{document}"
+    return latex_output
 
 def main():
     model, tokenizer = load_model_and_tokenizer()
     
     image_file = 'table_image.jpg'  # Replace with your image file path
     
-    results = process_image(model, tokenizer, image_file)
+    latex_results = process_image(model, tokenizer, image_file)
     
-    for key, value in results.items():
-        print(f"\n{key.replace('_', ' ').title()} result:")
-        print(value)
+    # Print the LaTeX output
+    print(latex_results)
 
 if __name__ == "__main__":
     main()
