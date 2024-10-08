@@ -27,7 +27,7 @@ def process_image(model, tokenizer, image_file):
 def main():
     model, tokenizer = load_model_and_tokenizer()
     
-    image_file = 'test_image.jpg'  # Replace with your image file path
+    image_file = 'table_image.jpg'  # Replace with your image file path
     
     fine_grained_result, multi_crop_result = process_image(model, tokenizer, image_file)
     
