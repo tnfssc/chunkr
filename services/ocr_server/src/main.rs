@@ -1,3 +1,18 @@
-fn main() -> std::io::Result<()> {
-    ocr_server::main()
+use candle_core::{Device, Tensor};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(feature = "gpu")]
+    let device = Device::cuda_if_available(0)?;
+    
+    #[cfg(not(feature = "gpu"))]
+    let device = Device::Cpu;
+
+    println!("Using device: {:?}", device);
+
+    let a = Tensor::randn(0f32, 1., (2, 3), &device)?;
+    let b = Tensor::randn(0f32, 1., (3, 4), &device)?;
+
+    let c = a.matmul(&b)?;
+    println!("{c}");
+    Ok(())
 }
