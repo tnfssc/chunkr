@@ -30,7 +30,6 @@ handler.setFormatter(colorlog.ColoredFormatter(
         'WARNING': 'yellow',
         'ERROR': 'red',
         'CRITICAL': 'red,bg_white',
-    }
 ))
 
 logger = colorlog.getLogger(__name__)
