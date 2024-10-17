@@ -1,0 +1,141 @@
+.header {
+  width: 100%;
+  height: fit-content;
+  z-index: 1;
+  padding-left: 24px;
+  padding-right: 24px;
+  align-items: center;
+}
+
+.logo {
+  transition: color 0.2s ease;
+  cursor: pointer;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.logo:hover .logo-container {
+  border: 1px solid var(--cyan-5);
+}
+
+.logo-title {
+  color: hsl(0, 0%, 100%) !important;
+  background-color: unset !important;
+}
+
+.logo-path {
+  fill: hsl(0, 0%, 100%, 0.9);
+  transition: fill 0.2s ease;
+}
+
+.nav-item {
+  transition: color 0.2s ease-in-out;
+  cursor: pointer;
+  color: hsl(0, 0%, 100%, 0.9);
+}
+
+.nav-item:hover {
+  color: hsl(0, 0%, 100%);
+}
+
+.nav-item-download {
+  transition: color 0.2s ease-in-out;
+  cursor: pointer;
+  color: hsl(0, 0%, 100%, 0.9);
+}
+
+.nav-item-download:hover {
+  color: hsl(0, 0%, 100%);
+}
+
+.dropdown-container {
+  display: none;
+}
+
+.nav-item-right {
+  background-color: hsl(0, 0%, 100%, 0.9);
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #000;
+  transition: background-color 0.2s ease-in-out;
+  border: none;
+  outline: none;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-item-right:hover {
+  background-color: hsl(0, 0%, 100%);
+}
+
+.nav-item-right > span {
+  color: inherit;
+}
+
+.rt-DropdownMenuItem {
+  color: #000 !important;
+}
+
+.rt-DropdownMenuItem:hover {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+.rt-DropdownMenuItem:hover > span {
+  color: #fff !important;
+}
+
+@media (max-width: 948px) {
+  .dropdown-container {
+    display: block;
+  }
+
+  .auth-container {
+    display: none;
+  }
+
+  .nav-item {
+    display: none;
+  }
+}
+
+@media (max-width: 832px) {
+  .header {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+
+@media (max-width: 552px) {
+  .header {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+}
+
+@media (max-width: 450px) {
+  .signup-button {
+    display: none;
+  }
+}
+
+@media (max-width: 384px) {
+  .logo-title {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .nav-center {
+    display: none;
+  }
+}

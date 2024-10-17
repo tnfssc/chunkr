@@ -1,0 +1,125 @@
+.lh
+.env
+.venv
+venv
+output
+test
+output-gpu
+staging
+examples
+annotated
+annotated-gpu
+sample
+input
+.whisper
+.env
+__pycache__
+.DS_Store
+node_modules
+.turbo
+*.log
+dist
+dist-ssr
+*.local
+.env
+.cache
+server/dist
+public/dist
+input2
+output
+test
+output-gpu
+staging
+examples
+annotated
+annotated-gpu
+sample
+samples
+test_images
+# Ignore Rust build artifacts
+target/
+**/*.rs.bk
+
+# Ignore environment variable files
+.env
+
+# Ignore specific IDE/editor files
+.idea/
+.vscode/
+*.swp
+
+# Ignore compiled libraries
+*.rlib
+
+# Ignore Cargo.lock if it's a library
+Cargo.lock
+
+# Ignore backup files
+*.bak
+*.tmp
+
+.lh
+
+*secret.yaml
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files, which are likely to contain sensitive data, such as
+# password, private keys, and other secrets. These should not be part of version 
+# control as they are data points which are potentially sensitive and subject 
+# to change depending on the environment.
+*.tfvars
+*.tfvars.json
+
+# Ignore override files as they are usually used to override resources locally and so
+# are not checked in
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore transient lock info files created by terraform apply
+.terraform.tfstate.lock.info
+
+# Include override files you do wish to add to version control using negated pattern
+# !example_override.tf
+
+# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
+# example: *tfplan*
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+log.py
+logs.md
+commit.py
+commits.md
+
+# Ignore SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+*.pem
+commits.md
+test_images
+
+*.crt
+*.key
+
+test.py
+1ea6dca1-b025-47e5-af98-f44f0c3fd5e2.jpg
+c58a36dc-ebce-4969-bdc5-76142825c4e0.jpg
+
+output.json
+output.html
