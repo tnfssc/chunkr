@@ -17,7 +17,7 @@ variable "region" {
 }
 
 variable "zone" {
-  default = "a"
+  default = "b"
 }
 
 variable "base_name" {
@@ -108,7 +108,7 @@ resource "google_compute_instance" "vm_instance" {
   allow_stopping_for_update = true
 
   guest_accelerator {
-    type  = "nvidia-l4"
+    type  = var.accelerator_type
     count = 1
   }
 

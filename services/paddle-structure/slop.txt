@@ -1,0 +1,13 @@
+#  Detection model conversion
+python3 -m paddle_serving_client.convert --dirname ./ch_PP-OCRv3_det_infer/ \
+                                         --model_filename inference.pdmodel          \
+                                         --params_filename inference.pdiparams       \
+                                         --serving_server ./ppocr_det_v3_serving/ \
+                                         --serving_client ./ppocr_det_v3_client/
+
+#  Recognition model conversion
+python3 -m paddle_serving_client.convert --dirname ./ch_PP-OCRv3_rec_infer/ \
+                                         --model_filename inference.pdmodel          \
+                                         --params_filename inference.pdiparams       \
+                                         --serving_server ./ppocr_rec_v3_serving/  \
+                                         --serving_client ./ppocr_rec_v3_client/
