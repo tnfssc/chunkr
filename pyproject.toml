@@ -7,4 +7,4 @@ requires-python = ">=3.11"
 dependencies = []
 
 [tool.uv.workspace]
-members = ["services/paddle-structure"]
+members = ["services/paddle-structure", "services/internVL"]

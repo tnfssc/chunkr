@@ -1,13 +1,14 @@
-#  Detection model conversion
-python3 -m paddle_serving_client.convert --dirname ./ch_PP-OCRv3_det_infer/ \
-                                         --model_filename inference.pdmodel          \
-                                         --params_filename inference.pdiparams       \
-                                         --serving_server ./ppocr_det_v3_serving/ \
-                                         --serving_client ./ppocr_det_v3_client/
-
-#  Recognition model conversion
-python3 -m paddle_serving_client.convert --dirname ./ch_PP-OCRv3_rec_infer/ \
-                                         --model_filename inference.pdmodel          \
-                                         --params_filename inference.pdiparams       \
-                                         --serving_server ./ppocr_rec_v3_serving/  \
-                                         --serving_client ./ppocr_rec_v3_client/
+docker run --runtime nvidia --gpus all \
+    --name my_vllm_container \
+    -v ~/.cache/huggingface:/root/.cache/huggingface \
+    --env "HUGGING_FACE_HUB_TOKEN=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" \
+    -p 8000:8000 \
+    --ipc=host \
+    --shm-size=16g \
+    vllm/vllm-openai:latest \
+    --model OpenGVLab/Mini-InternVL-Chat-4B-V1-5 \
+    --gpu-memory-utilization 0.95 \
+    --tensor-parallel-size 1 \
+    --max-model-len 16384 \
+    --max-num-batched-tokens 16384 \
+    --max-num-seqs 256
