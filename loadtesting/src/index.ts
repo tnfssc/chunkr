@@ -33,8 +33,8 @@ if (!API_KEY || !API_URL) {
 
 const eventEmitter = new EventEmitter();
 
-const MAX_FILES_TO_PROCESS = 1000; // Adjust this value as needed
-const CONCURRENT_REQUESTS_PER_WORKER = 500; // You can adjust this value
+const MAX_FILES_TO_PROCESS = 500; // Adjust this value as needed
+const CONCURRENT_REQUESTS_PER_WORKER = 200; // You can adjust this value
 const WORKERS_PER_CONFIG = 4; // Adjust this number as needed
 const INPUT_FOLDER = path.join(__dirname, "..", "input");
 const OUTPUT_FOLDER = path.join(__dirname, "..", "output");
@@ -100,20 +100,6 @@ function createCsvWriter(
 
 async function makeRequest(filePath: string, config: ModelConfig) {
   try {
-    const dataBuffer = fs.readFileSync(filePath);
-    const data = await PDFDocument.load(dataBuffer);
-
-    console.log(
-      `File ${path.basename(filePath)} has ${data.getPageCount()} pages`
-    ); // Temporary log for testing
-
-    if (data.getPageCount() > 500) {
-      console.log(
-        `Skipping file ${path.basename(filePath)} - more than 500 pages`
-      );
-      return null;
-    }
-
     const form = new FormData();
     form.append("file", fs.createReadStream(filePath));
     form.append("model", config.model);
@@ -329,10 +315,8 @@ function updateAggregateLog() {
 }
 
 if (isMainThread) {
-  // Remove the ensureDirectoryExists call
-  const files = fs
-    .readdirSync(INPUT_FOLDER)
-    .filter((file) => file.endsWith(".pdf"));
+  // Update file reading to include all files
+  const files = fs.readdirSync(INPUT_FOLDER);
 
   const fileDistribution = distributeFiles(files, MODEL_CONFIGS);
 
