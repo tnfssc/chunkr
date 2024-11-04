@@ -16,6 +16,7 @@ pub mod routes;
 pub mod utils;
 
 use middleware::auth::AuthMiddlewareFactory;
+use routes::github::get_github_repo_info;
 use routes::health::health_check;
 use routes::stripe::{
     create_setup_intent, create_stripe_session, get_invoice_detail, get_monthly_usage,
@@ -25,7 +26,6 @@ use routes::task::{create_extraction_task, get_task_status};
 use routes::tasks::get_tasks_status;
 use routes::usage::get_usage;
 use routes::user::get_or_create_user;
-use routes::github::get_github_repo_info;
 use utils::db::deadpool_postgres;
 use utils::server::admin_user::get_or_create_admin_user;
 use utils::storage::config_s3::create_client;
@@ -71,10 +71,15 @@ fn run_migrations(url: &str) {
             models::server::segment::BoundingBox,
             models::server::segment::Chunk,
             models::server::segment::OCRResult,
+            models::server::segment::OutputResponse,
             models::server::segment::Segment,
             models::server::segment::SegmentType,
             models::server::task::Status,
             models::server::task::TaskResponse,
+            utils::services::structured_extract::JsonSchema,
+            utils::services::structured_extract::Property,
+            utils::services::structured_extract::ExtractedJson,
+            utils::services::structured_extract::ExtractedField,
         )
     ),
     modifiers(&SecurityAddon),
