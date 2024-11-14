@@ -10,7 +10,7 @@ import path from "path";
 import { EventEmitter } from "events";
 import { v4 as uuidv4 } from "uuid";
 import { performance } from "perf_hooks";
-import { PDFDocument } from "pdf-lib";
+import { Blob } from "buffer";
 
 import {
   TaskResponse,
@@ -18,9 +18,7 @@ import {
   WorkerResult,
   FailureTypes,
   ModelConfig,
-  Model,
-  OcrStrategy,
-} from "./models";
+} from "../loadtesting/src/models";
 
 dotenv.config();
 
@@ -28,6 +26,7 @@ const API_URL = process.env.API_URL as string;
 const API_KEY = process.env.API_KEY as string;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 if (!API_KEY || !API_URL) {
   console.error("API_KEY or API_URL not found in environment variables");
   process.exit(1);
@@ -35,29 +34,69 @@ if (!API_KEY || !API_URL) {
 
 const eventEmitter = new EventEmitter();
 
-const MAX_FILES_TO_PROCESS = 200; // Adjust this value as needed
-const CONCURRENT_REQUESTS_PER_WORKER = 20; // You can adjust this value
-const WORKERS_PER_CONFIG = 4; // Adjust this number as needed
+const MAX_FILES_TO_PROCESS = 200;
+const CONCURRENT_REQUESTS_PER_WORKER = 5;
+const WORKERS_PER_CONFIG = 4;
 const INPUT_FOLDER = path.join(__dirname, "..", "input");
-const OUTPUT_FOLDER = path.join(__dirname, "..", "output");
+const OUTPUT_FOLDER = path.join(
+  __dirname,
+  "..",
+  "output_structured_extraction"
+);
 const RUN_ID = `${new Date().toISOString().replace(/[:.]/g, "-")}_${uuidv4().slice(0, 8)}`;
 let RUN_FOLDER = path.join(OUTPUT_FOLDER, RUN_ID);
 
-// Ensure run folder exists
-if (!fs.existsSync(RUN_FOLDER)) {
-  fs.mkdirSync(RUN_FOLDER, { recursive: true });
-}
+// Ensure output folders exist
+[OUTPUT_FOLDER, RUN_FOLDER].forEach((folder) => {
+  if (!fs.existsSync(folder)) {
+    fs.mkdirSync(folder, { recursive: true });
+  }
+});
 
-// Modify the MODEL_CONFIGS to include the number of workers
 const MODEL_CONFIGS: (ModelConfig & { workers: number })[] = [
   {
     model: "HighQuality",
-    ocrStrategy: "Auto",
+    segmentationStrategy: "Page",
+    ocrStrategy: "Off",
     percentage: 100,
     workers: WORKERS_PER_CONFIG,
-    segmentationStrategy: "LayoutAnalysis",
   },
 ];
+
+const EXTRACTION_SCHEMA = {
+  title: "Document Metadata",
+  type: "object",
+  properties: [
+    {
+      name: "title",
+      title: "Document Title",
+      type: "string",
+      description: "The main title of the document",
+      default: null,
+    },
+    {
+      name: "author",
+      title: "Author",
+      type: "string",
+      description: "The author(s) of the document",
+      default: null,
+    },
+    {
+      name: "date_published",
+      title: "Date Published",
+      type: "string",
+      description: "The publication date of the document",
+      default: null,
+    },
+    {
+      name: "location",
+      title: "Location",
+      type: "string",
+      description: "The location mentioned in the document",
+      default: null,
+    },
+  ],
+};
 
 // Save configurations to a txt file
 const configFilePath = path.join(RUN_FOLDER, "config.txt");
@@ -65,12 +104,13 @@ const configData = {
   MODEL_CONFIGS,
   MAX_FILES_TO_PROCESS,
   REQUESTS_PER_SECOND: CONCURRENT_REQUESTS_PER_WORKER,
+  EXTRACTION_SCHEMA,
 };
 fs.writeFileSync(configFilePath, JSON.stringify(configData, null, 2));
 
 function createCsvWriter(
-  model: Model,
-  ocrStrategy: OcrStrategy,
+  model: "HighQuality" | "Fast",
+  ocrStrategy: "All" | "Auto" | "Off",
   type: "progress"
 ) {
   const configFolder = path.join(
@@ -104,10 +144,61 @@ function createCsvWriter(
 async function makeRequest(filePath: string, config: ModelConfig) {
   try {
     const form = new FormData();
-    form.append("file", fs.createReadStream(filePath));
+
+    // Add file
+    const fileBuffer = fs.readFileSync(filePath);
+    form.append("file", fileBuffer, {
+      filename: path.basename(filePath),
+      contentType: "application/pdf",
+    });
+
+    // Add other fields
     form.append("model", config.model);
+    form.append("segmentation_strategy", config.segmentationStrategy);
     form.append("target_chunk_length", "512");
     form.append("ocr_strategy", config.ocrStrategy);
+
+    // Create the JSON schema with the correct format
+    const schema = {
+      title: "Document Metadata",
+      type: "object",
+      properties: [
+        // Note: This should be an array, not an object
+        {
+          name: "title",
+          title: "Document Title",
+          type: "string",
+          description: "The main title of the document",
+          default: null,
+        },
+        {
+          name: "author",
+          title: "Author",
+          type: "string",
+          description: "The author(s) of the document",
+          default: null,
+        },
+        {
+          name: "date_published",
+          title: "Date Published",
+          type: "string",
+          description: "The publication date of the document",
+          default: null,
+        },
+        {
+          name: "location",
+          title: "Location",
+          type: "string",
+          description: "The location mentioned in the document",
+          default: null,
+        },
+      ],
+    };
+
+    // Append the JSON schema with the correct content type
+    form.append("json_schema", JSON.stringify(schema), {
+      contentType: "application/json",
+    });
 
     try {
       const response = await axios.post<TaskResponse>(API_URL, form, {
@@ -117,10 +208,17 @@ async function makeRequest(filePath: string, config: ModelConfig) {
         },
       });
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response) {
+        console.error("API Error Response:", {
+          status: error.response.status,
+          data: error.response.data,
+        });
+      }
       return null;
     }
   } catch (error) {
+    console.error("Form creation failed:", error);
     return null;
   }
 }
@@ -172,6 +270,35 @@ async function pollTask(
         messageStartTime = currentTime;
       }
 
+      if (task.status === "Succeeded" && task.output) {
+        const configFolder = path.join(
+          RUN_FOLDER,
+          `${config.model.toLowerCase()}_${config.ocrStrategy.toLowerCase()}`
+        );
+
+        // Create outputs subfolder
+        const outputsFolder = path.join(configFolder, "json_outputs");
+        if (!fs.existsSync(outputsFolder)) {
+          fs.mkdirSync(outputsFolder, { recursive: true });
+        }
+
+        // Save JSON output with filename as identifier
+        const outputFileName = `${task.file_name.replace(/\.[^/.]+$/, "")}_output.json`;
+        const outputPath = path.join(outputsFolder, outputFileName);
+        fs.writeFileSync(
+          outputPath,
+          JSON.stringify(
+            {
+              file_name: task.file_name,
+              task_id: task.task_id,
+              output: task.output,
+            },
+            null,
+            2
+          )
+        );
+      }
+
       if (task.status === "Succeeded" || task.status === "Failed") {
         const startDate = new Date(taskStartTime);
         const endDate = new Date(currentTime);
@@ -204,7 +331,6 @@ async function pollTask(
   return null;
 }
 
-// Add this new function to distribute files among configs
 function distributeFiles(
   files: string[],
   configs: (ModelConfig & { workers: number })[]
@@ -297,11 +423,10 @@ Total failed files: ${failureTypes.startTaskFailed + failureTypes.pollTaskFailed
   return { totalPages, failureTypes };
 }
 
-// Add these new variables and functions
-const AGGREGATE_LOG_INTERVAL = 5000; // 5 seconds
-const aggregateLogPath = path.join(RUN_FOLDER, "aggregate_log.txt");
+let runStartTime = 0;
 let totalProcessedPages = 0;
-let runStartTime: number;
+const AGGREGATE_LOG_INTERVAL = 1000;
+const aggregateLogPath = path.join(RUN_FOLDER, "aggregate_log.csv");
 
 function initializeAggregateLog() {
   runStartTime = performance.now();
@@ -317,13 +442,77 @@ function updateAggregateLog() {
   fs.appendFileSync(aggregateLogPath, logEntry);
 }
 
+function calculateAggregateResults(results: WorkerResult[]): AggregateResults {
+  const totalTime =
+    Math.max(...results.map((r) => r.endTime)) -
+    Math.min(...results.map((r) => r.startTime));
+  const totalPages = results.reduce((sum, r) => sum + r.totalPages, 0);
+  const pagesPerSecond = totalPages / (totalTime / 1000);
+
+  return {
+    totalTime,
+    totalPages,
+    pagesPerSecond,
+  };
+}
+
+function updateConfigFile(results: AggregateResults) {
+  const configFilePath = path.join(RUN_FOLDER, "config.txt");
+  const configData = JSON.parse(fs.readFileSync(configFilePath, "utf-8"));
+
+  configData.aggregateResults = results;
+
+  fs.writeFileSync(configFilePath, JSON.stringify(configData, null, 2));
+}
+
+function updateWorkerResultFile(
+  config: ModelConfig,
+  result: WorkerResult & { failureTypes: FailureTypes },
+  workerId: number
+) {
+  const duration = (result.endTime - result.startTime) / 1000;
+  const totalFailedFiles =
+    result.failureTypes.startTaskFailed +
+    result.failureTypes.pollTaskFailed +
+    result.failureTypes.taskStatusFailed;
+
+  // Update only the combined results file
+  const combinedFilePath = path.join(
+    RUN_FOLDER,
+    `${config.model}_${config.ocrStrategy}_combined_results.txt`
+  );
+
+  let existingResults = {
+    totalPages: 0,
+    startTaskFailed: 0,
+    pollTaskFailed: 0,
+    taskStatusFailed: 0,
+  };
+
+  if (fs.existsSync(combinedFilePath)) {
+    const content = fs.readFileSync(combinedFilePath, "utf-8");
+    const matches = content.match(/Total pages processed: (\d+)/);
+    if (matches) {
+      existingResults.totalPages = parseInt(matches[1]);
+    }
+  }
+
+  const combinedPages = existingResults.totalPages + result.totalPages;
+  const combinedContent = `
+Combined Results:
+Total pages processed: ${combinedPages}
+Failed to start task: ${existingResults.startTaskFailed + result.failureTypes.startTaskFailed}
+Failed to poll task: ${existingResults.pollTaskFailed + result.failureTypes.pollTaskFailed}
+Tasks completed with failure status: ${existingResults.taskStatusFailed + result.failureTypes.taskStatusFailed}
+Total failed files: ${totalFailedFiles}
+  `.trim();
+
+  fs.writeFileSync(combinedFilePath, combinedContent);
+}
+
 if (isMainThread) {
-  // Update file reading to include all files
   const files = fs.readdirSync(INPUT_FOLDER);
-
   const fileDistribution = distributeFiles(files, MODEL_CONFIGS);
-
-  // Calculate the total number of workers
   const numWorkers = MODEL_CONFIGS.reduce(
     (sum, config) => sum + config.workers,
     0
@@ -355,14 +544,14 @@ if (isMainThread) {
           config,
           assignedFiles: workerFiles,
           RUN_FOLDER,
-          workerId: i + 1, // Add worker ID
+          workerId: i + 1,
         },
       });
 
       worker.on("message", (message: { type: string; data: WorkerResult }) => {
         if (message.type === "workerComplete") {
           workerResults.push(message.data);
-          updateWorkerResultFile(config, message.data, i + 1); // Pass worker ID
+          updateWorkerResultFile(config, message.data, i + 1);
           completedWorkers++;
           if (completedWorkers === numWorkers) {
             eventEmitter.emit("allWorkersComplete");
@@ -386,14 +575,13 @@ if (isMainThread) {
 
   eventEmitter.on("allWorkersComplete", () => {
     clearInterval(aggregateLogInterval);
-    updateAggregateLog(); // Final update
+    updateAggregateLog();
     const aggregateResults = calculateAggregateResults(workerResults);
     updateConfigFile(aggregateResults);
     console.log("Load test completed for all configurations. Exiting...");
     process.exit(0);
   });
 } else {
-  // This code runs in worker threads
   const {
     config,
     assignedFiles,
@@ -409,93 +597,4 @@ if (isMainThread) {
       data: { totalPages, failureTypes, startTime, endTime },
     });
   });
-}
-
-function calculateAggregateResults(results: WorkerResult[]): AggregateResults {
-  const totalTime =
-    Math.max(...results.map((r) => r.endTime)) -
-    Math.min(...results.map((r) => r.startTime));
-  const totalPages = results.reduce((sum, r) => sum + r.totalPages, 0);
-  const pagesPerSecond = totalPages / (totalTime / 1000);
-
-  return {
-    totalTime,
-    totalPages,
-    pagesPerSecond,
-  };
-}
-
-function updateConfigFile(results: AggregateResults) {
-  const configFilePath = path.join(RUN_FOLDER, "config.txt");
-  const configData = JSON.parse(fs.readFileSync(configFilePath, "utf-8"));
-
-  configData.aggregateResults = results;
-
-  fs.writeFileSync(configFilePath, JSON.stringify(configData, null, 2));
-}
-
-function updateWorkerResultFile(
-  config: ModelConfig,
-  result: WorkerResult & { failureTypes: FailureTypes },
-  workerId: number
-) {
-  // Create individual worker result file
-  const workerResultFilePath = path.join(
-    RUN_FOLDER,
-    `${config.model}_${config.ocrStrategy}_worker${workerId}_results.txt`
-  );
-
-  const duration = (result.endTime - result.startTime) / 1000;
-  const totalFailedFiles =
-    result.failureTypes.startTaskFailed +
-    result.failureTypes.pollTaskFailed +
-    result.failureTypes.taskStatusFailed;
-
-  // Write individual worker results
-  const workerContent = `
-Worker ${workerId} Results:
-Total pages processed: ${result.totalPages}
-Failed to start task: ${result.failureTypes.startTaskFailed}
-Failed to poll task: ${result.failureTypes.pollTaskFailed}
-Tasks completed with failure status: ${result.failureTypes.taskStatusFailed}
-Total failed files: ${totalFailedFiles}
-Duration: ${duration.toFixed(2)} seconds
-Pages per second: ${(result.totalPages / duration).toFixed(2)}
-  `.trim();
-
-  fs.writeFileSync(workerResultFilePath, workerContent);
-
-  // Update combined results file
-  const combinedFilePath = path.join(
-    RUN_FOLDER,
-    `${config.model}_${config.ocrStrategy}_combined_results.txt`
-  );
-
-  let existingResults = {
-    totalPages: 0,
-    startTaskFailed: 0,
-    pollTaskFailed: 0,
-    taskStatusFailed: 0,
-  };
-
-  if (fs.existsSync(combinedFilePath)) {
-    const content = fs.readFileSync(combinedFilePath, "utf-8");
-    const matches = content.match(/Total pages processed: (\d+)/);
-    if (matches) {
-      existingResults.totalPages = parseInt(matches[1]);
-      // Parse other values if needed
-    }
-  }
-
-  const combinedPages = existingResults.totalPages + result.totalPages;
-  const combinedContent = `
-Combined Results:
-Total pages processed: ${combinedPages}
-Failed to start task: ${existingResults.startTaskFailed + result.failureTypes.startTaskFailed}
-Failed to poll task: ${existingResults.pollTaskFailed + result.failureTypes.pollTaskFailed}
-Tasks completed with failure status: ${existingResults.taskStatusFailed + result.failureTypes.taskStatusFailed}
-Total failed files: ${totalFailedFiles}
-  `.trim();
-
-  fs.writeFileSync(combinedFilePath, combinedContent);
 }

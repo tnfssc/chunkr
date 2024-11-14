@@ -1,7 +1,59 @@
+export type Model = "HighQuality" | "Fast";
+export type OcrStrategy = "All" | "Auto" | "Off";
+export type SegmentationStrategy = "LayoutAnalysis" | "Page";
+
+export interface BoundingBox {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+export interface OcrResult {
+  text: string;
+  confidence: number;
+}
+
+export interface Segment {
+  segment_id: string;
+  bbox: BoundingBox;
+  content: string;
+  html: string;
+  image: string;
+  markdown: string;
+  ocr: OcrResult[];
+  page_height: number;
+  page_number: number;
+  page_width: number;
+  segment_type: string;
+}
+
+export interface Chunk {
+  segments: Segment[];
+  chunk_length: number;
+}
+
+export interface ExtractedField {
+  name: string;
+  field_type: string;
+  value: any;
+}
+
+export interface ExtractedJson {
+  title: string;
+  schema_type: string;
+  extracted_fields: ExtractedField[];
+}
+
+export interface OutputResponse {
+  chunks: Chunk[];
+  extracted_json?: ExtractedJson;
+}
+
 export interface TaskResponse {
   configuration: {
-    model: "HighQuality" | "Fast";
-    ocr_strategy: string;
+    model: Model;
+    ocr_strategy: OcrStrategy;
     target_chunk_length: number;
   };
   created_at: string;
@@ -10,7 +62,7 @@ export interface TaskResponse {
   finished_at?: string;
   input_file_url: string;
   message: string;
-  output?: any[];
+  output?: OutputResponse;
   page_count: number;
   status: "Starting" | "Processing" | "Succeeded" | "Failed" | "Cancelled";
   task_id: string;
@@ -37,7 +89,8 @@ export type FailureTypes = {
 };
 
 export type ModelConfig = {
-  model: "HighQuality" | "Fast";
-  ocrStrategy: "All" | "Auto" | "Off";
+  model: Model;
+  segmentationStrategy: SegmentationStrategy;
+  ocrStrategy: OcrStrategy;
   percentage: number;
 };

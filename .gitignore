@@ -130,3 +130,5 @@ output.html
 microsoft/table-transformer-structure-recognition-v1.1-all
 models
 score.py
+
+output_structured_extraction
