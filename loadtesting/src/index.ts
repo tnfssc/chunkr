@@ -35,8 +35,8 @@ if (!API_KEY || !API_URL) {
 
 const eventEmitter = new EventEmitter();
 
-const MAX_FILES_TO_PROCESS = 200; // Adjust this value as needed
-const CONCURRENT_REQUESTS_PER_WORKER = 20; // You can adjust this value
+const MAX_FILES_TO_PROCESS = 50; // Adjust this value as needed
+const CONCURRENT_REQUESTS_PER_WORKER = 10; // You can adjust this value
 const WORKERS_PER_CONFIG = 4; // Adjust this number as needed
 const INPUT_FOLDER = path.join(__dirname, "..", "input");
 const OUTPUT_FOLDER = path.join(__dirname, "..", "output");
