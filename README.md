@@ -103,3 +103,4 @@ To use Chunkr without complying with the AGPL-3.0 license terms you can [contact
 
 ## Want to talk to a founder?
 [https://cal.com/mehulc/30min](https://cal.com/mehulc/30min)
+[mehul@lumina.sh](mailto:mehul@lumina.sh)
