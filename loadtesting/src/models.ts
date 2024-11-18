@@ -1,6 +1,7 @@
 export type Model = "HighQuality" | "Fast";
 export type OcrStrategy = "All" | "Auto" | "Off";
 export type SegmentationStrategy = "LayoutAnalysis" | "Page";
+export type TestType = "standard" | "structured";
 
 export interface BoundingBox {
   x1: number;
@@ -88,9 +89,10 @@ export type FailureTypes = {
   taskStatusFailed: number;
 };
 
-export type ModelConfig = {
+export interface ModelConfig {
   model: Model;
-  segmentationStrategy: SegmentationStrategy;
   ocrStrategy: OcrStrategy;
   percentage: number;
-};
+  segmentationStrategy: SegmentationStrategy;
+  testType: TestType;
+}

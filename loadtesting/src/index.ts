@@ -35,9 +35,9 @@ if (!API_KEY || !API_URL) {
 
 const eventEmitter = new EventEmitter();
 
-const MAX_FILES_TO_PROCESS = 50; // Adjust this value as needed
-const CONCURRENT_REQUESTS_PER_WORKER = 10; // You can adjust this value
-const WORKERS_PER_CONFIG = 4; // Adjust this number as needed
+const MAX_FILES_TO_PROCESS = 200; // Adjust this value as needed
+const CONCURRENT_REQUESTS_PER_WORKER = 20; // You can adjust this value
+const WORKERS_PER_CONFIG = 2; // Adjust this number as needed
 const INPUT_FOLDER = path.join(__dirname, "..", "input");
 const OUTPUT_FOLDER = path.join(__dirname, "..", "output");
 const RUN_ID = `${new Date().toISOString().replace(/[:.]/g, "-")}_${uuidv4().slice(0, 8)}`;
@@ -53,9 +53,34 @@ const MODEL_CONFIGS: (ModelConfig & { workers: number })[] = [
   {
     model: "HighQuality",
     ocrStrategy: "Auto",
-    percentage: 100,
+    percentage: 70,
     workers: WORKERS_PER_CONFIG,
     segmentationStrategy: "LayoutAnalysis",
+    testType: "standard",
+  },
+  {
+    model: "HighQuality",
+    ocrStrategy: "All",
+    percentage: 10,
+    workers: WORKERS_PER_CONFIG,
+    segmentationStrategy: "LayoutAnalysis",
+    testType: "standard",
+  },
+  {
+    model: "HighQuality",
+    ocrStrategy: "Auto",
+    percentage: 10,
+    workers: WORKERS_PER_CONFIG,
+    segmentationStrategy: "LayoutAnalysis",
+    testType: "structured",
+  },
+  {
+    model: "HighQuality",
+    ocrStrategy: "Auto",
+    percentage: 10,
+    workers: WORKERS_PER_CONFIG,
+    segmentationStrategy: "Page",
+    testType: "structured",
   },
 ];
 
@@ -103,11 +128,71 @@ function createCsvWriter(
 
 async function makeRequest(filePath: string, config: ModelConfig) {
   try {
+    console.log(`[DEBUG] Starting request for ${filePath} with config:`, {
+      model: config.model,
+      ocrStrategy: config.ocrStrategy,
+      testType: config.testType,
+      segmentationStrategy: config.segmentationStrategy,
+    });
+
     const form = new FormData();
-    form.append("file", fs.createReadStream(filePath));
+
+    // Add file with proper content type
+    const fileBuffer = fs.readFileSync(filePath);
+    form.append("file", fileBuffer, {
+      filename: path.basename(filePath),
+      contentType: "application/pdf",
+    });
+
+    // Add other fields
     form.append("model", config.model);
     form.append("target_chunk_length", "512");
     form.append("ocr_strategy", config.ocrStrategy);
+    form.append("segmentation_strategy", config.segmentationStrategy);
+
+    if (config.testType === "structured") {
+      console.log(`[DEBUG] Adding JSON schema for structured extraction`);
+      // Create the JSON schema with the correct format
+      const schema = {
+        title: "Document Metadata",
+        type: "object",
+        properties: [
+          {
+            name: "title",
+            title: "Document Title",
+            type: "string",
+            description: "The main title of the document",
+            default: null,
+          },
+          {
+            name: "author",
+            title: "Author",
+            type: "string",
+            description: "The author(s) of the document",
+            default: null,
+          },
+          {
+            name: "date_published",
+            title: "Date Published",
+            type: "string",
+            description: "The publication date of the document",
+            default: null,
+          },
+          {
+            name: "location",
+            title: "Location",
+            type: "string",
+            description: "The location mentioned in the document",
+            default: null,
+          },
+        ],
+      };
+
+      // Append the JSON schema with the correct content type
+      form.append("json_schema", JSON.stringify(schema), {
+        contentType: "application/json",
+      });
+    }
 
     try {
       const response = await axios.post<TaskResponse>(API_URL, form, {
@@ -117,10 +202,17 @@ async function makeRequest(filePath: string, config: ModelConfig) {
         },
       });
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response) {
+        console.error("API Error Response:", {
+          status: error.response.status,
+          data: error.response.data,
+        });
+      }
       return null;
     }
   } catch (error) {
+    console.error("Form creation failed:", error);
     return null;
   }
 }
@@ -129,6 +221,12 @@ async function pollTask(
   taskId: string,
   config: ModelConfig
 ): Promise<TaskResponse | null> {
+  console.log(`[DEBUG] Starting pollTask for ${taskId} with config:`, {
+    model: config.model,
+    ocrStrategy: config.ocrStrategy,
+    testType: config.testType,
+  });
+
   console.log(
     `Starting task ${taskId} for model ${config.model} with OCR strategy ${config.ocrStrategy}`
   );
@@ -170,6 +268,65 @@ async function pollTask(
 
         lastMessage = task.message;
         messageStartTime = currentTime;
+      }
+
+      if (task.status === "Succeeded") {
+        console.log(
+          `[DEBUG] Task ${taskId} succeeded. Checking structured conditions:`,
+          {
+            hasOutput: !!task.output,
+            isStructured: config.testType === "structured",
+            output: task.output, // Log the actual output
+          }
+        );
+
+        if (task.output && config.testType === "structured") {
+          try {
+            console.log(
+              `[DEBUG] Processing structured output for task ${taskId}`
+            );
+
+            // Create a consistent folder name for structured outputs
+            const folderName = `${config.model.toLowerCase()}_structured`;
+            const configFolder = path.join(RUN_FOLDER, folderName);
+
+            console.log(`[DEBUG] Attempting to create folder: ${configFolder}`);
+            if (!fs.existsSync(configFolder)) {
+              fs.mkdirSync(configFolder, { recursive: true });
+              console.log(`[DEBUG] Created config folder: ${configFolder}`);
+            }
+
+            // Create outputs subfolder
+            const outputsFolder = path.join(configFolder, "structured_outputs");
+            console.log(
+              `[DEBUG] Attempting to create outputs folder: ${outputsFolder}`
+            );
+            if (!fs.existsSync(outputsFolder)) {
+              fs.mkdirSync(outputsFolder, { recursive: true });
+              console.log(`[DEBUG] Created outputs folder: ${outputsFolder}`);
+            }
+
+            // Save structured output
+            const outputFileName = `${task.file_name.replace(/\.[^/.]+$/, "")}_output.json`;
+            const outputPath = path.join(outputsFolder, outputFileName);
+
+            const outputData = {
+              file_name: task.file_name,
+              task_id: task.task_id,
+              output: task.output,
+            };
+
+            fs.writeFileSync(outputPath, JSON.stringify(outputData, null, 2));
+            console.log(
+              `[DEBUG] Successfully saved structured output to: ${outputPath}`
+            );
+          } catch (error) {
+            console.error(
+              `[DEBUG] Error saving structured output for task ${taskId}:`,
+              error
+            );
+          }
+        }
       }
 
       if (task.status === "Succeeded" || task.status === "Failed") {
@@ -439,10 +596,10 @@ function updateWorkerResultFile(
   result: WorkerResult & { failureTypes: FailureTypes },
   workerId: number
 ) {
-  // Create individual worker result file
-  const workerResultFilePath = path.join(
+  // Create a single results file for the configuration
+  const resultFilePath = path.join(
     RUN_FOLDER,
-    `${config.model}_${config.ocrStrategy}_worker${workerId}_results.txt`
+    `${config.model}_${config.ocrStrategy}_results.txt`
   );
 
   const duration = (result.endTime - result.startTime) / 1000;
@@ -451,7 +608,7 @@ function updateWorkerResultFile(
     result.failureTypes.pollTaskFailed +
     result.failureTypes.taskStatusFailed;
 
-  // Write individual worker results
+  // Append worker results to the file
   const workerContent = `
 Worker ${workerId} Results:
 Total pages processed: ${result.totalPages}
@@ -461,41 +618,9 @@ Tasks completed with failure status: ${result.failureTypes.taskStatusFailed}
 Total failed files: ${totalFailedFiles}
 Duration: ${duration.toFixed(2)} seconds
 Pages per second: ${(result.totalPages / duration).toFixed(2)}
-  `.trim();
+----------------------------------------
+`;
 
-  fs.writeFileSync(workerResultFilePath, workerContent);
-
-  // Update combined results file
-  const combinedFilePath = path.join(
-    RUN_FOLDER,
-    `${config.model}_${config.ocrStrategy}_combined_results.txt`
-  );
-
-  let existingResults = {
-    totalPages: 0,
-    startTaskFailed: 0,
-    pollTaskFailed: 0,
-    taskStatusFailed: 0,
-  };
-
-  if (fs.existsSync(combinedFilePath)) {
-    const content = fs.readFileSync(combinedFilePath, "utf-8");
-    const matches = content.match(/Total pages processed: (\d+)/);
-    if (matches) {
-      existingResults.totalPages = parseInt(matches[1]);
-      // Parse other values if needed
-    }
-  }
-
-  const combinedPages = existingResults.totalPages + result.totalPages;
-  const combinedContent = `
-Combined Results:
-Total pages processed: ${combinedPages}
-Failed to start task: ${existingResults.startTaskFailed + result.failureTypes.startTaskFailed}
-Failed to poll task: ${existingResults.pollTaskFailed + result.failureTypes.pollTaskFailed}
-Tasks completed with failure status: ${existingResults.taskStatusFailed + result.failureTypes.taskStatusFailed}
-Total failed files: ${totalFailedFiles}
-  `.trim();
-
-  fs.writeFileSync(combinedFilePath, combinedContent);
+  // Append the worker results to the file
+  fs.appendFileSync(resultFilePath, workerContent);
 }
